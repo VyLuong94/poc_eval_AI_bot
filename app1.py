@@ -12,7 +12,7 @@ from typing import List
 # Load PhoBERT model
 @st.cache_resource
 def load_model():
-    model_name = "vinai/phobert-base"
+    model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     return tokenizer, model
