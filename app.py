@@ -94,11 +94,30 @@ def suggest_response(text, region, label):
 
 def evaluate_agent_text(agent_text):
     issues = []
-    if any(x in agent_text.lower() for x in ["phải trả ngay", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi"]):
+    lowered_text = agent_text.lower()
+
+    # Kiểm tra ngôn từ gây áp lực
+    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi"]):
         issues.append("Nhân viên có thái độ gây áp lực, không phù hợp với SOP.")
-    if "không thể chờ đợi" in agent_text.lower():
+
+    # Kiểm tra ngôn từ thiếu chuyên nghiệp
+    if "không thể chờ đợi" in lowered_text:
         issues.append("Nhân viên sử dụng ngôn từ không phù hợp, gây cảm giác không thoải mái cho khách hàng.")
+
+    # Kiểm tra từ ngữ chửi thề
+    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng"]  # mở rộng nếu cần
+    if any(bad_word in lowered_text for bad_word in bad_words):
+        issues.append("Nhân viên sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
+
     return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
+
+def eval_conversation(customer_text, agent_text, region):
+    label = classify_tone(customer_text)
+    agent_eval = evaluate_agent_text(agent_text)
+    suggestion = suggest_response(customer_text, region, label)
+    sop_answer = qa_chain.run(customer_text)
+    return label, agent_eval, suggestion, sop_answer
+
 
 # Giao diện Streamlit
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
@@ -109,10 +128,7 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text and agent_text:
-        label = classify_tone(customer_text)
-        agent_eval = evaluate_agent_text(agent_text)
-        suggestion = suggest_response(customer_text, region, label)
-        sop_answer = qa_chain.run(customer_text)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
