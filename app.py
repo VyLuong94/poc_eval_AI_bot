@@ -9,10 +9,17 @@ from langchain.llms.base import LLM
 import torch
 from typing import List
 
-# 1. Load tone classification model
-model_path = "vyluong/tone-classification-model"
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForSequenceClassification.from_pretrained(model_path)
+
+
+@st.cache_resource
+def load_model():
+    model_path = "vyluong/tone-classification-model"
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForSequenceClassification.from_pretrained(model_path)
+    return tokenizer, model
+
+tokenizer, model = load_model()
+
 
 def classify_tone(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
