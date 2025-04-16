@@ -2,10 +2,8 @@ import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.llms.base import LLM
 import torch
 from typing import List
 
@@ -25,10 +23,19 @@ def classify_tone(text):
     label = outputs.logits.argmax(dim=1).cpu().item()
     return "Hợp tác" if label == 1 else "Không hợp tác"
 
-# Load QA chain
+# Load QA model
 @st.cache_resource
-def load_rag_qa_chain():
-    sop_text = """
+def load_qa_model():
+    tokenizer = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+    model = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+    return tokenizer, model
+
+qa_tokenizer, qa_model = load_qa_model()
+
+# Load SOP text
+@st.cache_resource
+def load_sop_text():
+    return """
     1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
        - Ngừng liên hệ trong ngày.
        - Gửi cảnh báo hoặc chuyển hồ sơ sang bộ phận giám sát.
@@ -40,41 +47,29 @@ def load_rag_qa_chain():
     3. Nhân viên cần giữ thái độ bình tĩnh, không gây áp lực khi khách hàng khó chịu.
     4. Lịch liên hệ lại tối đa 3 lần/tuần, không gọi liên tiếp trong 1 ngày.
     """
-    docs = [Document(page_content=sop_text)]
-    texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-    db = FAISS.from_documents(texts, embedding_model)
+sop_text = load_sop_text()
 
-    tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
-    model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+# Trả lời câu hỏi từ SOP
+def answer_from_sop(question):
+    inputs = qa_tokenizer(question, sop_text, return_tensors="pt", truncation=True)
+    with torch.no_grad():
+        outputs = qa_model(**inputs)
 
-    class QA_LLM(LLM):
-        def _call(self, prompt: str, **kwargs) -> str:
-            inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
-            with torch.no_grad():
-                outputs = model_qa(**inputs)
-            start_index = torch.argmax(outputs.start_logits)
-            end_index = torch.argmax(outputs.end_logits)
-            if end_index < start_index:
-                return "Không tìm thấy thông tin phù hợp trong SOP."
-            answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
-            return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
+    start_index = torch.argmax(outputs.start_logits)
+    end_index = torch.argmax(outputs.end_logits)
+    if end_index < start_index or (start_index == 0 and end_index == 0):
+        return "Không tìm thấy thông tin phù hợp trong SOP."
 
-        @property
-        def _llm_type(self) -> str:
-            return "custom-bert-qa"
+    answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
+    return qa_tokenizer.decode(answer_tokens, skip_special_tokens=True).strip()
 
-    custom_llm = QA_LLM()
-    return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
 
-qa_chain = load_rag_qa_chain()
-
-# Business logic fallback or enhanced via LLM
+# Business logic fallback
 def suggest_response(text, region, label, use_llm=True):
     if use_llm:
         try:
-            return qa_chain.run(text)
+            return answer_from_sop(text)
         except Exception as e:
             print(f"LLM lỗi: {e} – fallback to logic.")
 
@@ -96,6 +91,7 @@ def suggest_response(text, region, label, use_llm=True):
         else:
             return "Cảm ơn khách, gửi SMS xác nhận lịch thanh toán."
 
+
 # Đánh giá nội dung nhân viên
 def evaluate_agent_text(agent_text):
     issues = []
@@ -109,12 +105,14 @@ def evaluate_agent_text(agent_text):
         issues.append("Sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
     return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
 
+
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
     label = classify_tone(customer_text)
     agent_eval = evaluate_agent_text(agent_text)
     suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
-    sop_answer = qa_chain.run(customer_text)
+    sop_answer = answer_from_sop(customer_text)
     return label, agent_eval, suggestion, sop_answer
+
 
 # Streamlit UI
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
