@@ -1,0 +1,11 @@
+streamlit
+transformers
+datasets
+evaluate
+sentence-transformers
+faiss-cpu
+langchain
+langchain-community
+openai
+pyngrok
+huggingface_hub
