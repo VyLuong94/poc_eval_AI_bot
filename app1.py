@@ -109,10 +109,10 @@ def evaluate_agent_text(agent_text):
         issues.append("Sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
     return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
 
-def eval_conversation(customer_text, agent_text, region):
+def eval_conversation(customer_text, agent_text, region, use_llm=True):
     label = classify_tone(customer_text)
     agent_eval = evaluate_agent_text(agent_text)
-    suggestion = suggest_response(customer_text, region, label)
+    suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
     sop_answer = qa_chain.run(customer_text)
     return label, agent_eval, suggestion, sop_answer
 
