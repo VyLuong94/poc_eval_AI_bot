@@ -19,10 +19,10 @@ import objgraph
 
 
 # Start memory tracking
-tracemalloc.start()
+# tracemalloc.start()
 
 # Memory profiling decorator
-@profile
+# # @profile
 def load_model():
     """Load your model here."""
     model_name = "vyluong/tone-classification-model"
@@ -35,12 +35,11 @@ def load_model():
 tokenizer, model, device = load_model()
 
 def classify_tone(text):
-    tokenizer, model, device = load_model()
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
     outputs = model(**inputs)
     label = outputs.logits.argmax(dim=1).cpu().item()
     return "Hợp tác" if label == 1 else "Không hợp tác"
-
 
 # Cải tiến load RAG QA chain
 @st.cache_resource
