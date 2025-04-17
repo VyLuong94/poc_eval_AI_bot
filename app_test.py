@@ -2,6 +2,7 @@ import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_core.language_models.llms import LLM
