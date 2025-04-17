@@ -94,6 +94,24 @@ Phản hồi:
     generated = output[0]["generated_text"]
     return generated.replace(prompt, "").strip()
 
+def evaluate_agent_text(agent_text):
+    issues = []
+    lowered_text = agent_text.lower()
+
+    # Kiểm tra ngôn từ gây áp lực
+    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi"]):
+        issues.append("Nhân viên có thái độ gây áp lực, không phù hợp với SOP.")
+
+    # Kiểm tra ngôn từ thiếu chuyên nghiệp
+    if "không thể chờ đợi" in lowered_text:
+        issues.append("Nhân viên sử dụng ngôn từ không phù hợp, gây cảm giác không thoải mái cho khách hàng.")
+
+    # Kiểm tra từ ngữ chửi thề
+    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng"]  # mở rộng nếu cần
+    if any(bad_word in lowered_text for bad_word in bad_words):
+        issues.append("Nhân viên sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
+
+    return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
 # Cải tiến phản hồi thủ công
 def rule_based_response(text, region, label):
     text_lower = text.lower()
@@ -135,6 +153,13 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
     except Exception as e:
         st.error(f"Đã xảy ra lỗi: {str(e)}")  # Hiển thị thông báo lỗi nếu có
         raise e
+
+def suggest_response(text, region, label, use_llm=True):
+    if use_llm:
+        return generate_response(text, region, label)
+    else:
+        return rule_based_response(text, region, label)
+
 
 # UI Streamlit
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
