@@ -130,7 +130,7 @@ def evaluate_agent_text(agent_text):
     lowered_text = agent_text.lower()
 
     # Kiểm tra ngôn từ gây áp lực
-    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi"]):
+    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi", "thanh toán ngay"]):
         issues.append("Nhân viên có thái độ gây áp lực, không phù hợp với SOP.")
 
     # Kiểm tra ngôn từ thiếu chuyên nghiệp
