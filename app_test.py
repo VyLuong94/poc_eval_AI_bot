@@ -41,45 +41,50 @@ def classify_tone(text):
 # Cải tiến load RAG QA chain
 @st.cache_resource
 def load_rag_qa_chain():
-    sop_text = """
-    1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
-       - Ngừng liên hệ trong ngày.
-       - Gửi cảnh báo hoặc chuyển hồ sơ sang bộ phận giám sát.
+    try:
+        sop_text = """
+        1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
+           - Ngừng liên hệ trong ngày.
+           - Gửi cảnh báo hoặc chuyển hồ sơ sang bộ phận giám sát.
+        
+        2. Nếu khách hàng hợp tác, cam kết thanh toán:
+           - Xác nhận lại thời gian thanh toán.
+           - Gửi SMS xác nhận cam kết.
+        
+        3. Nhân viên cần giữ thái độ bình tĩnh, không gây áp lực khi khách hàng khó chịu.
+        4. Lịch liên hệ lại tối đa 3 lần/tuần, không gọi liên tiếp trong 1 ngày.
+        """
+        docs = [Document(page_content=sop_text)]
+        texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-    2. Nếu khách hàng hợp tác, cam kết thanh toán:
-       - Xác nhận lại thời gian thanh toán.
-       - Gửi SMS xác nhận cam kết.
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
+        db = FAISS.from_documents(texts, embedding_model)
 
-    3. Nhân viên cần giữ thái độ bình tĩnh, không gây áp lực khi khách hàng khó chịu.
-    4. Lịch liên hệ lại tối đa 3 lần/tuần, không gọi liên tiếp trong 1 ngày.
-    """
-    docs = [Document(page_content=sop_text)]
-    texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
+        tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+        model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
 
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-    db = FAISS.from_documents(texts, embedding_model)
+        class QA_LLM(LLM):
+            def _call(self, prompt: str, **kwargs) -> str:
+                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
+                with torch.no_grad():
+                    outputs = model_qa(**inputs)
+                start_index = torch.argmax(outputs.start_logits)
+                end_index = torch.argmax(outputs.end_logits)
+                if end_index < start_index:
+                    return "Không tìm thấy thông tin phù hợp trong SOP."
+                answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
+                return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
 
-    tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
-    model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+            @property
+            def _llm_type(self) -> str:
+                return "custom-bert-qa"
 
-    class QA_LLM(LLM):
-        def _call(self, prompt: str, **kwargs) -> str:
-            inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
-            with torch.no_grad():
-                outputs = model_qa(**inputs)
-            start_index = torch.argmax(outputs.start_logits)
-            end_index = torch.argmax(outputs.end_logits)
-            if end_index < start_index:
-                return "Không tìm thấy thông tin phù hợp trong SOP."
-            answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
-            return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
+        custom_llm = QA_LLM()
+        return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
 
-        @property
-        def _llm_type(self) -> str:
-            return "custom-bert-qa"
-
-    custom_llm = QA_LLM()
-    return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
+    except Exception as e:
+        print(f"Error loading QA chain: {e}")
+        raise e  
 
 qa_chain = load_rag_qa_chain()
 
