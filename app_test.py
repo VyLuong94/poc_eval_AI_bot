@@ -71,15 +71,10 @@ def load_rag_qa_chain():
 
 qa_chain = load_rag_qa_chain()
 
-
-# Business logic fallback
-from transformers import pipeline
-
-# Load mô hình LLM, có thể thay thế bằng mô hình khác nếu cần (ví dụ GPT2, Bloom, v.v.)
+# Load mô hình LLM
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
 
 def generate_response(text, region, label):
-    # Prompt được thiết kế để tạo phản hồi phù hợp ngữ cảnh
     prompt = f"""
 Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
 
@@ -95,11 +90,8 @@ Không nói quá máy móc. Nếu khách hợp tác, nhấn mạnh lịch hẹn.
 Trả lời bằng văn phong tự nhiên như người thật:
 Phản hồi:
 """
-
     output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-
     generated = output[0]["generated_text"]
-    # Trích phần phản hồi sau prompt
     return generated.replace(prompt, "").strip()
 
 def rule_based_response(text, region, label):
@@ -124,29 +116,13 @@ def rule_based_response(text, region, label):
             return "Cảm ơn anh/chị đã phối hợp, hệ thống sẽ gửi lại xác nhận lịch thanh toán."
 
 def suggest_response(text, region, label, use_llm=True):
-    """
-    Trả về gợi ý phản hồi phù hợp dựa trên nội dung hội thoại, khu vực và cảm xúc khách hàng.
-
-    Parameters:
-        text (str): Nội dung khách hàng vừa nói.
-        region (str): Khu vực của khách hàng. Ví dụ: 'Northern', 'Central', 'Southern'.
-        label (str): Nhãn cảm xúc hoặc phân loại của khách (ví dụ: 'Không hợp tác', 'Hợp tác').
-        use_llm (bool): Có dùng mô hình ngôn ngữ LLM không.
-
-    Returns:
-        str: Gợi ý phản hồi phù hợp.
-    """
     if use_llm:
         try:
             return generate_response(text, region, label)
         except Exception as e:
             print(f"LLM lỗi: {e} – fallback sang logic thủ công.")
-
     return rule_based_response(text, region, label)
 
-
-
-# Đánh giá nội dung nhân viên
 def evaluate_agent_text(agent_text):
     issues = []
     lowered_text = agent_text.lower()
@@ -166,7 +142,6 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
     suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
     sop_answer = qa_chain(customer_text)
     return label, agent_eval, suggestion, sop_answer
-
 
 # Streamlit UI
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
