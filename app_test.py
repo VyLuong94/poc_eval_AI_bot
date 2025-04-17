@@ -8,9 +8,10 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain_core.language_models.llms import LLM
 from transformers import pipeline
 import torch
+import time
 from typing import List
 
-# Load PhoBERT model
+# Cải tiến: Chỉ tải mô hình một lần, cache hiệu quả hơn
 @st.cache_resource
 def load_model():
     model_name = "vyluong/tone-classification-model"
@@ -26,7 +27,7 @@ def classify_tone(text):
     label = outputs.logits.argmax(dim=1).cpu().item()
     return "Hợp tác" if label == 1 else "Không hợp tác"
 
-# Load QA model
+# Cải tiến load RAG QA chain
 @st.cache_resource
 def load_rag_qa_chain():
     sop_text = """
@@ -71,22 +72,30 @@ def load_rag_qa_chain():
 
 qa_chain = load_rag_qa_chain()
 
-# Load mô hình LLM
+# Cải tiến LLM pipe
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
 
 def generate_response(text, region, label):
-      try:
-          prompt = f"""
-          Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
-          ...
-          """
-          output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-          generated = output[0]["generated_text"]
-          return generated.replace(prompt, "").strip()
-      except Exception as e:
-          print(f"Error in generating response: {e}")
-          return "Có lỗi trong việc tạo phản hồi. Vui lòng thử lại sau."
+    prompt = f"""
+Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
 
+Thông tin khách hàng:
+- Khu vực: {region}
+- Cảm xúc hiện tại: {label}
+- Phát ngôn của khách hàng: "{text}"
+
+Yêu cầu: Trả lời lại khách hàng bằng TIẾNG VIỆT, ngắn gọn (1-2 câu), lịch sự, thân thiện và phù hợp hoàn cảnh để khuyến khích thanh toán. Không được bịa chuyện hay nói điều không liên quan.
+Hãy gợi ý một phản hồi ngắn gọn, lịch sự, mang tính thuyết phục hoặc phù hợp hoàn cảnh.
+Không nói quá máy móc. Nếu khách hợp tác, nhấn mạnh lịch hẹn. Nếu không hợp tác, chọn hướng xử lý phù hợp.
+
+Trả lời bằng văn phong tự nhiên như người thật:
+Phản hồi:
+"""
+    output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
+    generated = output[0]["generated_text"]
+    return generated.replace(prompt, "").strip()
+
+# Cải tiến phản hồi thủ công
 def rule_based_response(text, region, label):
     text_lower = text.lower()
 
@@ -108,35 +117,22 @@ def rule_based_response(text, region, label):
         else:  # Southern
             return "Cảm ơn anh/chị đã phối hợp, hệ thống sẽ gửi lại xác nhận lịch thanh toán."
 
-def suggest_response(text, region, label, use_llm=True):
-    if use_llm:
-        try:
-            return generate_response(text, region, label)
-        except Exception as e:
-            print(f"LLM lỗi: {e} – fallback sang logic thủ công.")
-    return rule_based_response(text, region, label)
-
-def evaluate_agent_text(agent_text):
-    issues = []
-    lowered_text = agent_text.lower()
-    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi"]):
-        issues.append("Nhân viên có thái độ gây áp lực, không phù hợp với SOP.")
-    if "không thể chờ đợi" in lowered_text:
-        issues.append("Ngôn từ không phù hợp, gây cảm giác không thoải mái.")
-    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng"]
-    if any(bad_word in lowered_text for bad_word in bad_words):
-        issues.append("Sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
-    return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
-
-
+# Kiểm tra thời gian của mỗi tác vụ
+@st.cache_data
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
+    start_time = time.time()
+    
     label = classify_tone(customer_text)
     agent_eval = evaluate_agent_text(agent_text)
     suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
     sop_answer = qa_chain(customer_text)
+    
+    elapsed_time = time.time() - start_time
+    st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
+    
     return label, agent_eval, suggestion, sop_answer
 
-# Streamlit UI
+# UI Streamlit
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
 
 customer_text = st.text_area("Nội dung khách hàng", "")
@@ -144,16 +140,13 @@ agent_text = st.text_area("Nội dung nhân viên", "")
 region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
-    if not customer_text or not agent_text:
-        st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
+    if customer_text and agent_text:
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
+
+        st.subheader("Kết quả phân tích:")
+        st.write(f"**Phân loại khách hàng:** {label}")
+        st.write(f"**Đánh giá nhân viên:** {agent_eval}")
+        st.write(f"**Gợi ý phản hồi:** {suggestion}")
+        st.write(f"**SOP liên quan:** {sop_answer}")
     else:
-        try:
-            label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
-            
-            st.subheader("Kết quả phân tích:")
-            st.write(f"**Phân loại khách hàng:** {label}")
-            st.write(f"**Đánh giá nhân viên:** {agent_eval}")
-            st.write(f"**Gợi ý phản hồi:** {suggestion}")
-            st.write(f"**SOP liên quan:** {sop_answer}")
-        except Exception as e:
-            st.error(f"Đã xảy ra lỗi: {str(e)}")
+        st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
