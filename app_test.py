@@ -138,7 +138,7 @@ def evaluate_agent_text(agent_text):
         issues.append("Nhân viên sử dụng ngôn từ không phù hợp, gây cảm giác không thoải mái cho khách hàng.")
 
     # Kiểm tra từ ngữ chửi thề
-    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng"]  # mở rộng nếu cần
+    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng", "tao", "mày"]  # mở rộng nếu cần
     if any(bad_word in lowered_text for bad_word in bad_words):
         issues.append("Nhân viên sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
 
