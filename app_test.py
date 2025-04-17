@@ -93,6 +93,8 @@ qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
 openai.api_key = os.getenv("OPENAI_API_KEY")
+if not openai.api_key:
+    raise Exception("Missing API key!")
 
 def generate_response(text, region, label):
     prompt = f"""
