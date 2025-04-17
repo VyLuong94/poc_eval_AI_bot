@@ -69,7 +69,7 @@ def load_rag_qa_chain():
     custom_llm = QA_LLM()
     return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
 
-qa_chain = load_rag_qa_chain()
+# qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
@@ -138,20 +138,21 @@ def rule_based_response(text, region, label):
 @st.cache_data
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
-        start_time = time.time()  # Ghi lại thời gian bắt đầu
-        
-        # Các xử lý khác của ứng dụng...
+        start_time = time.time()
+
         label = classify_tone(customer_text)
         agent_eval = evaluate_agent_text(agent_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
+
+        qa_chain = load_rag_qa_chain()  # <-- Di chuyển vào đây
         sop_answer = qa_chain(customer_text)
 
-        elapsed_time = time.time() - start_time  # Tính thời gian xử lý
-        st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")  # Hiển thị thời gian
+        elapsed_time = time.time() - start_time
+        st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
 
         return label, agent_eval, suggestion, sop_answer
     except Exception as e:
-        st.error(f"Đã xảy ra lỗi: {str(e)}")  # Hiển thị thông báo lỗi nếu có
+        st.error(f"Đã xảy ra lỗi: {str(e)}")
         raise e
 
 def suggest_response(text, region, label, use_llm=True):
@@ -169,7 +170,7 @@ agent_text = st.text_area("Nội dung nhân viên", "")
 region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
-    if customer_text and agent_text:
+    if customer_text.strip() and agent_text.strip():
         label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
 
         st.subheader("Kết quả phân tích:")
