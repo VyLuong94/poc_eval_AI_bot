@@ -49,13 +49,16 @@ def check_memory_usage():
     objgraph.show_most_common_types(limit=10)
     objgraph.show_growth(limit=10)
 
-def load_model_tone_classification():
-    model_name = "vyluong/tone-classification-model"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
+def load_model():
+    model_path = "vyluong/tone-classification-model"
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForSequenceClassification.from_pretrained(model_path)
     return tokenizer, model
 
-def classify_tone(text, tokenizer, model):
+tokenizer, model = load_model()
+
+
+def classify_tone(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     outputs = model(**inputs)
     label = outputs.logits.argmax(dim=1).cpu().item()
@@ -175,7 +178,7 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
         start_time = time.time()
 
-        label = classify_tone(customer_text, tokenizer, model)
+        label = classify_tone(customer_text)
         agent_eval = evaluate_agent_text(agent_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
         sop_answer = qa_chain.run(customer_text)
