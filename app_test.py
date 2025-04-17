@@ -68,8 +68,8 @@ def load_rag_qa_chain():
         embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
         db = FAISS.from_documents(texts, embedding_model)
 
-        tokenizer_qa = AutoTokenizer.from_pretrained("VietAI/vibert4news-base-cased-squad2")
-        model_qa = AutoModelForQuestionAnswering.from_pretrained("VietAI/vibert4news-base-cased-squad2")
+        tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+        model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
 
         class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
