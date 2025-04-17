@@ -75,17 +75,17 @@ qa_chain = load_rag_qa_chain()
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
 
 def generate_response(text, region, label):
-     try:
-        prompt = f"""
-        Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
-        ...
-        """
-        output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-        generated = output[0]["generated_text"]
-        return generated.replace(prompt, "").strip()
-    except Exception as e:
-        print(f"Error in generating response: {e}")
-        return "Có lỗi trong việc tạo phản hồi. Vui lòng thử lại sau."
+      try:
+          prompt = f"""
+          Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
+          ...
+          """
+          output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
+          generated = output[0]["generated_text"]
+          return generated.replace(prompt, "").strip()
+      except Exception as e:
+          print(f"Error in generating response: {e}")
+          return "Có lỗi trong việc tạo phản hồi. Vui lòng thử lại sau."
 
 def rule_based_response(text, region, label):
     text_lower = text.lower()
