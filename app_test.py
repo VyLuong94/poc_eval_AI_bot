@@ -75,24 +75,17 @@ qa_chain = load_rag_qa_chain()
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
 
 def generate_response(text, region, label):
-    prompt = f"""
-Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
-
-Thông tin khách hàng:
-- Khu vực: {region}
-- Cảm xúc hiện tại: {label}
-- Phát ngôn của khách hàng: "{text}"
-
-Yêu cầu: Trả lời lại khách hàng bằng TIẾNG VIỆT, ngắn gọn (1-2 câu), lịch sự, thân thiện và phù hợp hoàn cảnh để khuyến khích thanh toán. Không được bịa chuyện hay nói điều không liên quan.
-Hãy gợi ý một phản hồi ngắn gọn, lịch sự, mang tính thuyết phục hoặc phù hợp hoàn cảnh.
-Không nói quá máy móc. Nếu khách hợp tác, nhấn mạnh lịch hẹn. Nếu không hợp tác, chọn hướng xử lý phù hợp.
-
-Trả lời bằng văn phong tự nhiên như người thật:
-Phản hồi:
-"""
-    output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-    generated = output[0]["generated_text"]
-    return generated.replace(prompt, "").strip()
+     try:
+        prompt = f"""
+        Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
+        ...
+        """
+        output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
+        generated = output[0]["generated_text"]
+        return generated.replace(prompt, "").strip()
+    except Exception as e:
+        print(f"Error in generating response: {e}")
+        return "Có lỗi trong việc tạo phản hồi. Vui lòng thử lại sau."
 
 def rule_based_response(text, region, label):
     text_lower = text.lower()
@@ -151,13 +144,16 @@ agent_text = st.text_area("Nội dung nhân viên", "")
 region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
-    if customer_text and agent_text:
-        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
-
-        st.subheader("Kết quả phân tích:")
-        st.write(f"**Phân loại khách hàng:** {label}")
-        st.write(f"**Đánh giá nhân viên:** {agent_eval}")
-        st.write(f"**Gợi ý phản hồi:** {suggestion}")
-        st.write(f"**SOP liên quan:** {sop_answer}")
-    else:
+    if not customer_text or not agent_text:
         st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
+    else:
+        try:
+            label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
+            
+            st.subheader("Kết quả phân tích:")
+            st.write(f"**Phân loại khách hàng:** {label}")
+            st.write(f"**Đánh giá nhân viên:** {agent_eval}")
+            st.write(f"**Gợi ý phản hồi:** {suggestion}")
+            st.write(f"**SOP liên quan:** {sop_answer}")
+        except Exception as e:
+            st.error(f"Đã xảy ra lỗi: {str(e)}")
