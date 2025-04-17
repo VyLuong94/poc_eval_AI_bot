@@ -144,8 +144,8 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
         agent_eval = evaluate_agent_text(agent_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
 
-        qa_chain = load_rag_qa_chain()  # <-- Di chuyển vào đây
-        sop_answer = qa_chain(customer_text)
+        qa_chain = load_rag_qa_chain()  
+        sop_answer = qa_chain.run(customer_text)
 
         elapsed_time = time.time() - start_time
         st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
