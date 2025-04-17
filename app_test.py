@@ -8,6 +8,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain_core.language_models.llms import LLM
 from transformers import pipeline
 import torch
+import openai
 import time
 from typing import List
 import tracemalloc
@@ -83,27 +84,34 @@ def load_rag_qa_chain():
 qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
-llm_pipe = pipeline("text-generation", model="distilgpt2")
+openai.api_key = os.getenv("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")
 
 def generate_response(text, region, label):
     prompt = f"""
-Bạn là nhân viên chăm sóc khách hàng trong bộ phận thu hồi nợ.
+Bạn là nhân viên chăm sóc khách hàng của công ty tài chính, đang làm việc tại bộ phận thu hồi nợ.
 
 Thông tin khách hàng:
 - Khu vực: {region}
 - Cảm xúc hiện tại: {label}
 - Phát ngôn của khách hàng: "{text}"
 
-Yêu cầu: Trả lời lại khách hàng bằng TIẾNG VIỆT, ngắn gọn (1-2 câu), lịch sự, thân thiện và phù hợp hoàn cảnh để khuyến khích thanh toán. Không được bịa chuyện hay nói điều không liên quan.
-Hãy gợi ý một phản hồi ngắn gọn, lịch sự, mang tính thuyết phục hoặc phù hợp hoàn cảnh.
-Không nói quá máy móc. Nếu khách hợp tác, nhấn mạnh lịch hẹn. Nếu không hợp tác, chọn hướng xử lý phù hợp.
+Yêu cầu:
+- Trả lời khách hàng bằng **tiếng Việt**, lịch sự, thân thiện, phù hợp hoàn cảnh.
+- Câu trả lời ngắn gọn (1-2 câu), tự nhiên như người thật, không máy móc.
+- Nếu khách hợp tác, nhấn mạnh lịch hẹn thanh toán.
+- Nếu khách từ chối hoặc trì hoãn, hãy chọn cách xử lý phù hợp nhưng vẫn giữ thái độ thiện chí.
 
-Trả lời bằng văn phong tự nhiên như người thật:
+Chỉ trả lời bằng phản hồi gửi cho khách hàng. Không giải thích thêm.
+
 Phản hồi:
 """
-    output = llm_pipe(prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
-    generated = output[0]["generated_text"]
-    return generated.replace(prompt, "").strip()
+    response = openai.ChatCompletion.create(
+        model="gpt-4",  # hoặc "gpt-3.5-turbo" 
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        max_tokens=100
+    )
+    return response.choices[0].message.content.strip()
 
 def evaluate_agent_text(agent_text):
     issues = []
