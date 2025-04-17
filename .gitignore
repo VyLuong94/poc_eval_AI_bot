@@ -1,0 +1,6 @@
+
+# Ignore directories and files don't want to push
+fine_tuned_model/
+.config/
+results/
+sample_data/
