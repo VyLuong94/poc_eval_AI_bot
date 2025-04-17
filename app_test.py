@@ -32,7 +32,7 @@ def load_model():
     model.to(device)
     return tokenizer, model, device
 
-tokenizer, model = load_model()
+tokenizer, model, device = load_model()
 
 def classify_tone(text):
     tokenizer, model, device = load_model()
