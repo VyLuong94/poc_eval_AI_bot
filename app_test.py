@@ -28,41 +28,12 @@ def load_model():
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     return tokenizer, model
 
-@profile
-def load_rag_qa_chain():
-    """Load a RAG QA chain here."""
-    model_name = "deepset/roberta-base-squad2"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-    # Assume QA chain loading logic is here
-    return model, tokenizer
-
-def unload_model(model, tokenizer):
-    """Unload the model and tokenizer to free memory."""
-    del model
-    del tokenizer
-    gc.collect()
-
-def check_memory_usage():
-    """Print the memory usage for debugging."""
-    print(tracemalloc.get_traced_memory())
-    objgraph.show_most_common_types(limit=10)
-    objgraph.show_growth(limit=10)
-
-def load_model():
-    model_path = "vyluong/tone-classification-model"
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(model_path)
-    return tokenizer, model
-
-tokenizer, model = load_model()
-
-
 def classify_tone(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     outputs = model(**inputs)
     label = outputs.logits.argmax(dim=1).cpu().item()
     return "Hợp tác" if label == 1 else "Không hợp tác"
+
 
 # Cải tiến load RAG QA chain
 @st.cache_resource
