@@ -27,12 +27,15 @@ def load_model():
     """Load your model here."""
     model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
-    return tokenizer, model
+    model.to(device)
+    return tokenizer, model, device
 
 tokenizer, model = load_model()
 
 def classify_tone(text):
+    tokenizer, model, device = load_model()
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     outputs = model(**inputs)
     label = outputs.logits.argmax(dim=1).cpu().item()
