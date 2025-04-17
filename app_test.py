@@ -107,7 +107,7 @@ def load_rag_qa_chain():
 qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
-llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
+llm_pipe = pipeline("text-generation", model="bigscience/distilgpt2")
 
 def generate_response(text, region, label):
     prompt = f"""
