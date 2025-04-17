@@ -28,6 +28,8 @@ def load_model():
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     return tokenizer, model
 
+tokenizer, model = load_model()
+
 def classify_tone(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     outputs = model(**inputs)
