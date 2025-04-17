@@ -84,7 +84,7 @@ def load_rag_qa_chain():
 qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
-openai.api_key = os.getenv("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")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def generate_response(text, region, label):
     prompt = f"""
