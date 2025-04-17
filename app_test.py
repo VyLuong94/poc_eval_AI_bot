@@ -68,12 +68,14 @@ def load_rag_qa_chain():
         embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
         db = FAISS.from_documents(texts, embedding_model)
 
-        tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
-        model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+        tokenizer_qa = AutoTokenizer.from_pretrained("VietAI/vibert4news-base-cased-squad2")
+        model_qa = AutoModelForQuestionAnswering.from_pretrained("VietAI/vibert4news-base-cased-squad2")
 
         class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
-                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
+                docs = db.similarity_search(prompt, k=1)
+                context = docs[0].page_content if docs else sop_text
+                inputs = tokenizer_qa(prompt, context, return_tensors="pt", truncation=True)
                 with torch.no_grad():
                     outputs = model_qa(**inputs)
                 start_index = torch.argmax(outputs.start_logits)
@@ -82,6 +84,7 @@ def load_rag_qa_chain():
                     return "Không tìm thấy thông tin phù hợp trong SOP."
                 answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
                 return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
+
 
             @property
             def _llm_type(self) -> str:
