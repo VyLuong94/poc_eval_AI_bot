@@ -11,8 +11,7 @@ import torch
 import time
 from typing import List
 
-# Cải tiến: Chỉ tải mô hình một lần, cache hiệu quả hơn
-@st.cache_resource
+
 def load_model():
     model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -120,17 +119,22 @@ def rule_based_response(text, region, label):
 # Kiểm tra thời gian của mỗi tác vụ
 @st.cache_data
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
-    start_time = time.time()
-    
-    label = classify_tone(customer_text)
-    agent_eval = evaluate_agent_text(agent_text)
-    suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
-    sop_answer = qa_chain(customer_text)
-    
-    elapsed_time = time.time() - start_time
-    st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
-    
-    return label, agent_eval, suggestion, sop_answer
+    try:
+        start_time = time.time()  # Ghi lại thời gian bắt đầu
+        
+        # Các xử lý khác của ứng dụng...
+        label = classify_tone(customer_text)
+        agent_eval = evaluate_agent_text(agent_text)
+        suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
+        sop_answer = qa_chain(customer_text)
+
+        elapsed_time = time.time() - start_time  # Tính thời gian xử lý
+        st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")  # Hiển thị thời gian
+
+        return label, agent_eval, suggestion, sop_answer
+    except Exception as e:
+        st.error(f"Đã xảy ra lỗi: {str(e)}")  # Hiển thị thông báo lỗi nếu có
+        raise e
 
 # UI Streamlit
 st.title("POC: Đánh giá hội thoại thu hồi nợ")
