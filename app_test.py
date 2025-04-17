@@ -69,7 +69,7 @@ def load_rag_qa_chain():
     custom_llm = QA_LLM()
     return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
 
-# qa_chain = load_rag_qa_chain()
+qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
 llm_pipe = pipeline("text-generation", model="bigscience/bloomz-560m")
@@ -143,8 +143,6 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
         label = classify_tone(customer_text)
         agent_eval = evaluate_agent_text(agent_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
-
-        qa_chain = load_rag_qa_chain()  
         sop_answer = qa_chain.run(customer_text)
 
         elapsed_time = time.time() - start_time
@@ -171,12 +169,14 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text.strip() and agent_text.strip():
-        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, qa_chain)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
         st.write(f"**Đánh giá nhân viên:** {agent_eval}")
         st.write(f"**Gợi ý phản hồi:** {suggestion}")
         st.write(f"**SOP liên quan:** {sop_answer}")
+        st.write(type(qa_chain))
+
     else:
         st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
