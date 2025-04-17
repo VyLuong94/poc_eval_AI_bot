@@ -56,6 +56,11 @@ def load_rag_qa_chain():
         
         3. Nhân viên cần giữ thái độ bình tĩnh, không gây áp lực khi khách hàng khó chịu.
         4. Lịch liên hệ lại tối đa 3 lần/tuần, không gọi liên tiếp trong 1 ngày.
+        5. Luôn xưng hô lịch sự với khách hàng.
+        6. Luôn xác nhận lịch thanh toán rõ ràng.
+        7. Không dùng ngôn từ đe dọa, không nói tục, chửi thề
+        8. Gợi ý khách trả góp nếu gặp khó khăn.
+        9. Gọi lại sau 3 ngày nếu khách không sẵn sàng.
         """
         docs = [Document(page_content=sop_text)]
         texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
@@ -143,7 +148,8 @@ def evaluate_agent_text(agent_text):
         issues.append("Nhân viên sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
 
     return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
-# Cải tiến phản hồi thủ công
+
+
 def rule_based_response(text, region, label):
     text_lower = text.lower()
 
@@ -165,7 +171,7 @@ def rule_based_response(text, region, label):
         else:  # Southern
             return "Cảm ơn anh/chị đã phối hợp, hệ thống sẽ gửi lại xác nhận lịch thanh toán."
 
-# Kiểm tra thời gian của mỗi tác vụ
+
 @st.cache_data
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
