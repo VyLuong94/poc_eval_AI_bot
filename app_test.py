@@ -10,17 +10,52 @@ from transformers import pipeline
 import torch
 import time
 from typing import List
+import tracemalloc
+import gc
+from memory_profiler import profile
+import objgraph
 
 
+# Start memory tracking
+tracemalloc.start()
+
+# Memory profiling decorator
+@profile
 def load_model():
+    """Load your model here."""
     model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     return tokenizer, model
 
-tokenizer, model = load_model()
+@profile
+def load_rag_qa_chain():
+    """Load a RAG QA chain here."""
+    model_name = "deepset/roberta-base-squad2"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+    # Assume QA chain loading logic is here
+    return model, tokenizer
 
-def classify_tone(text):
+def unload_model(model, tokenizer):
+    """Unload the model and tokenizer to free memory."""
+    del model
+    del tokenizer
+    gc.collect()
+
+def check_memory_usage():
+    """Print the memory usage for debugging."""
+    print(tracemalloc.get_traced_memory())
+    objgraph.show_most_common_types(limit=10)
+    objgraph.show_growth(limit=10)
+
+def load_model_tone_classification():
+    model_name = "vyluong/tone-classification-model"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
+    return tokenizer, model
+
+def classify_tone(text, tokenizer, model):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     outputs = model(**inputs)
     label = outputs.logits.argmax(dim=1).cpu().item()
@@ -140,7 +175,7 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
         start_time = time.time()
 
-        label = classify_tone(customer_text)
+        label = classify_tone(customer_text, tokenizer, model)
         agent_eval = evaluate_agent_text(agent_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
         sop_answer = qa_chain.run(customer_text)
@@ -169,14 +204,13 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text.strip() and agent_text.strip():
-        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, qa_chain)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
         st.write(f"**Đánh giá nhân viên:** {agent_eval}")
         st.write(f"**Gợi ý phản hồi:** {suggestion}")
         st.write(f"**SOP liên quan:** {sop_answer}")
-        st.write(type(qa_chain))
 
     else:
         st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
