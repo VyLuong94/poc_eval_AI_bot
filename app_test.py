@@ -92,7 +92,9 @@ def load_rag_qa_chain():
 qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# Optional safety check
 if not openai.api_key:
     raise Exception("Missing API key!")
 
