@@ -1,5 +1,7 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+​
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
@@ -18,7 +20,9 @@ from memory_profiler import profile
 import objgraph
 
 
-MODEL_NAME = "vyluong/videberta-sop-qa"
+# MODEL_NAME = "vyluong/videberta-sop-qa"
+
+MODEL_NAME = "vyluong/vit5-base-sop-qa"
 
 def load_model():
     """Load your model here."""
