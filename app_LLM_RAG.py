@@ -25,7 +25,7 @@ def load_model():
     model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = AutoModelForQuestionAnswering.from_pretrained(model_name, from_tf=False)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
     model.to(device)
     return tokenizer, model, device
 
