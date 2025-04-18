@@ -71,15 +71,15 @@ def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
 
         class ViQALLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
-                inputs = tokenizer(prompt, sop_text, return_tensors="pt", truncation=True)
+                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
                 with torch.no_grad():
-                    outputs = model(**inputs)
+                    outputs = model_qa(**inputs)
                 start_index = torch.argmax(outputs.start_logits)
                 end_index = torch.argmax(outputs.end_logits)
                 if end_index < start_index:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
                 answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
-                return tokenizer.decode(answer_tokens, skip_special_tokens=True)
+                return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
 
             @property
             def _llm_type(self) -> str:
