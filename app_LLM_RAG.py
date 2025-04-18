@@ -71,16 +71,19 @@ def load_rag_qa_chain():
 
         class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
-                docs = db.similarity_search(prompt, k=1)
-                context = docs[0].page_content if docs else sop_text
-                inputs = tokenizer_qa(prompt, context, return_tensors="pt", truncation=True)
+                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True, padding=True)
+                inputs = {k: v.to(model_qa.device) for k, v in inputs.items()}
+
                 with torch.no_grad():
                     outputs = model_qa(**inputs)
+
                 start_index = torch.argmax(outputs.start_logits)
                 end_index = torch.argmax(outputs.end_logits)
+
                 if end_index < start_index:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
-                answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
+
+                answer_tokens = inputs["input_ids"][0][start_index : end_index + 1]
                 return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
 
 
