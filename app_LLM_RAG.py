@@ -208,7 +208,7 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text.strip() and agent_text.strip():
-        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=None)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
