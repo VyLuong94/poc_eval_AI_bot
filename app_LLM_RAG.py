@@ -18,8 +18,8 @@ import os
 from memory_profiler import profile
 import objgraph
 
-
-MODEL_NAME = "vyluong/vit5-base-sop-qa"
+MODEL_NAME = "VietAI/vit5-base"
+MODEL_NAME = "VietAI/vit5-base"
 
 def load_model():
     """Load your model here."""
@@ -64,11 +64,11 @@ def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
         docs = [Document(page_content=sop_text)]
         texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
         db = FAISS.from_documents(texts, embedding_model)
 
         tokenizer_qa = AutoTokenizer.from_pretrained(model_name)
-        model_qa = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        model_qa = AutoModelForQuestionAnswering.from_pretrained(model_name)
 
         class ViQALLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
