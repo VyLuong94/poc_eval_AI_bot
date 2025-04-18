@@ -91,7 +91,6 @@ def load_rag_qa_chain():
         raise e
 
 
-# Cache the classification model globally, no need to reload
 tokenizer, model, device = load_model()
 qa_chain = load_rag_qa_chain()
 
@@ -132,6 +131,25 @@ def generate_response(text, region, label):
         max_tokens=100
     )
     return response.choices[0].message.content.strip()
+
+def evaluate_agent_text(agent_text):
+    issues = []
+    lowered_text = agent_text.lower()
+
+    # Kiểm tra ngôn từ gây áp lực
+    if any(x in lowered_text for x in ["phải", "nếu không sẽ bị phạt", "tôi sẽ tiếp tục gọi", "thanh toán ngay"]):
+        issues.append("Nhân viên có thái độ gây áp lực, không phù hợp với SOP.")
+
+    # Kiểm tra ngôn từ thiếu chuyên nghiệp
+    if "không thể chờ đợi" in lowered_text:
+        issues.append("Nhân viên sử dụng ngôn từ không phù hợp, gây cảm giác không thoải mái cho khách hàng.")
+
+    # Kiểm tra từ ngữ chửi thề
+    bad_words = ["má", "đm", "vcl", "vãi", "mẹ", "vl", "địt", "con chó", "thằng ngu", "con khùng", "tao", "mày"]  # mở rộng nếu cần
+    if any(bad_word in lowered_text for bad_word in bad_words):
+        issues.append("Nhân viên sử dụng từ ngữ không phù hợp (chửi thề), vi phạm quy định SOP.")
+
+    return "\n".join(issues) if issues else "Nhân viên đã tuân thủ SOP và giữ thái độ chuyên nghiệp."
 
 
 # Rule-based response
@@ -176,6 +194,11 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
         st.error(f"Đã xảy ra lỗi: {str(e)}")
         raise e
 
+def suggest_response(text, region, label, use_llm=True):
+    if use_llm:
+        return generate_response(text, region, label)
+    else:
+        return rule_based_response(text, region, label)
 
 # Cleanup memory after processing
 def cleanup_memory():
