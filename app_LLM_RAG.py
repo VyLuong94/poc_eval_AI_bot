@@ -20,8 +20,6 @@ from memory_profiler import profile
 import objgraph
 
 
-# MODEL_NAME = "vyluong/videberta-sop-qa"
-
 MODEL_NAME = "vyluong/vit5-base-sop-qa"
 
 def load_model():
