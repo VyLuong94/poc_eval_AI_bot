@@ -181,18 +181,34 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
         start_time = time.time()
 
+        # Classify the tone of the customer text
         label = classify_tone(customer_text)
-        agent_eval = evaluate_agent_text(agent_text)
+        
+        # Evaluate the agent's text
+        evaluation_result = evaluate_agent_text(agent_text)
+        
+        # Check if there is a SOP violation in the agent's response
+        if "vi phạm quy định SOP" in evaluation_result:
+            # Return a violation message without showing SOP
+            return f"Phản hồi không phù hợp: {evaluation_result}"
+
+        # Suggest a response based on the customer's text and other factors
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
+
+        # Get the SOP answer based on the customer's text
         sop_answer = qa_chain.run(customer_text)
 
+        # Calculate the processing time
         elapsed_time = time.time() - start_time
         st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
 
-        return label, agent_eval, suggestion, sop_answer
+        # Return all results
+        return label, evaluation_result, suggestion, sop_answer
+    
     except Exception as e:
         st.error(f"Đã xảy ra lỗi: {str(e)}")
         raise e
+
 
 def suggest_response(text, region, label, use_llm=True):
     if use_llm:
