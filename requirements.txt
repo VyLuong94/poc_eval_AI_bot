@@ -7,7 +7,7 @@ sentence-transformers
 faiss-cpu
 langchain
 langchain-community
-openai>=1.0.0
+openai>=1.75
 pyngrok
 huggingface_hub
 memory-profiler
