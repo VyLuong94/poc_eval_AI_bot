@@ -1,6 +1,6 @@
 torch
 streamlit
-transformers>=4.51.3
+transformers>=4.30
 datasets
 evaluate
 sentence-transformers
