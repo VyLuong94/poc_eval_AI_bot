@@ -1,6 +1,6 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModel
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
@@ -32,8 +32,8 @@ def load_model():
 tokenizer, model, device = load_model()
 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-tokenizer_qa = AutoTokenizer.from_pretrained("trantuandat/ViDeBERTa-Large-SQuAD2")  
-model_qa = AutoModelForQuestionAnsweringfrom_pretrained("trantuandat/ViDeBERTa-Large-SQuAD2") 
+tokenizer_qa = AutoTokenizer.from_pretrained("Fsoft-AIC/videberta-base")  
+model_qa = AutoModel.from_pretrained("Fsoft-AIC/videberta-base") 
 
 sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
