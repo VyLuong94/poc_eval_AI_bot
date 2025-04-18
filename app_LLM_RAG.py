@@ -1,6 +1,6 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModel
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering, AutoModel
+# from transformers import AutoModelForSeq2SeqLM
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
