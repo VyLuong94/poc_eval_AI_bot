@@ -25,15 +25,15 @@ def load_model():
     model_name = "vyluong/tone-classification-model"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, from_tf=False)
+    model = AutoModelForQuestionAnswering.from_pretrained(model_name, from_tf=False)
     model.to(device)
     return tokenizer, model, device
 
 tokenizer, model, device = load_model()
 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-tokenizer_qa = AutoTokenizer.from_pretrained("Fsoft-AIC/videberta-base")  
-model_qa = AutoModel.from_pretrained("Fsoft-AIC/videberta-base") 
+tokenizer_qa = AutoTokenizer.from_pretrained("FPTAI/velectra-small-cased-squad")  
+model_qa = AutoModel.from_pretrained("FPTAI/velectra-small-cased-squad") 
 
 sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
