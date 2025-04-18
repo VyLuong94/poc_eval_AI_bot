@@ -32,8 +32,8 @@ def load_model():
 tokenizer, model, device = load_model()
 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-tokenizer_qa = AutoTokenizer.from_pretrained("FPTAI/velectra-base-discriminator-cased")  
-model_qa = AutoModel.from_pretrained("FPTAI/velectra-base-discriminator-cased") 
+tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")  
+model_qa = AutoModel.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad") 
 
 sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
@@ -129,7 +129,7 @@ Phản hồi:
         model="gpt-4",  # hoặc "gpt-3.5-turbo"
         messages=[{"role": "user", "content": prompt}],
         temperature=0.6,
-        max_tokens=150
+        max_tokens=100
     )
     return response.choices[0].message.content.strip()
 
