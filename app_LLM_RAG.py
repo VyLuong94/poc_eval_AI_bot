@@ -1,7 +1,6 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForQuestionAnswering
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-​
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
@@ -69,7 +68,7 @@ def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
         db = FAISS.from_documents(texts, embedding_model)
 
         tokenizer_qa = AutoTokenizer.from_pretrained(model_name)
-        model_qa = utoModelForSeq2SeqLM.from_pretrained(model_name)
+        model_qa = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
         class ViQALLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
