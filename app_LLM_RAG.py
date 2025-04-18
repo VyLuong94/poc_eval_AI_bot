@@ -18,8 +18,7 @@ import os
 from memory_profiler import profile
 import objgraph
 
-MODEL_NAME = "VietAI/vit5-base"
-MODEL_NAME = "VietAI/vit5-base"
+# MODEL_NAME = "VietAI/vit5-base"
 
 def load_model():
     """Load your model here."""
@@ -32,19 +31,11 @@ def load_model():
 
 tokenizer, model, device = load_model()
 
-def classify_tone(text):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    with torch.no_grad():
-        outputs = model(**inputs)
-    label = outputs.logits.argmax(dim=1).cpu().item()
-    return "Hợp tác" if label == 1 else "Không hợp tác"
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
+tokenizer_qa = AutoTokenizer.from_pretrained("VietAI/vit5-base")  
+model_qa = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base") 
 
-# Cải tiến load RAG QA chain
-@st.cache_resource
-def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
-    try:
-        sop_text = """
+sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
            - Ngừng liên hệ trong ngày.
            - Gửi cảnh báo hoặc chuyển hồ sơ sang bộ phận giám sát.
@@ -61,16 +52,14 @@ def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
         8. Gợi ý khách trả góp nếu gặp khó khăn.
         9. Gọi lại sau 3 ngày nếu khách không sẵn sàng.
         """
-        docs = [Document(page_content=sop_text)]
-        texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-        db = FAISS.from_documents(texts, embedding_model)
+docs = [Document(page_content=sop_text)]
+texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-        tokenizer_qa = AutoTokenizer.from_pretrained(model_name)
-        model_qa = AutoModelForQuestionAnswering.from_pretrained(model_name)
+# Create a FAISS vector store and cache it if SOP doesn't change often
+db = FAISS.from_documents(texts, embedding_model)
 
-        class ViQALLM(LLM):
+class ViQALLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
                 inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
                 with torch.no_grad():
@@ -87,9 +76,20 @@ def load_rag_qa_chain_vi(model_name=MODEL_NAME, sop_text=None):
                 return "viqa-bert"
 
 
+def classify_tone(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs)
+    label = outputs.logits.argmax(dim=1).cpu().item()
+    return "Hợp tác" if label == 1 else "Không hợp tác"
+
+# Cải tiến load RAG QA chain
+@st.cache_resource
+def load_rag_qa_chain_vi():
+    try:
         custom_llm = ViQALLM()
         return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
-
     except Exception as e:
         print(f"Error loading QA chain: {e}")
         raise e
