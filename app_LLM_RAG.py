@@ -32,8 +32,8 @@ def load_model():
 tokenizer, model, device = load_model()
 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-tokenizer_qa = AutoTokenizer.from_pretrained("VietAI/vit5-base")  
-model_qa = AutoModelForSeq2SeqLM.from_pretrained("VietAI/vit5-base") 
+tokenizer_qa = AutoTokenizer.from_pretrained("trantuandat/ViDeBERTa-Large-SQuAD2")  
+model_qa = AutoModelForQuestionAnsweringfrom_pretrained("trantuandat/ViDeBERTa-Large-SQuAD2") 
 
 sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
