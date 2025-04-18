@@ -31,11 +31,19 @@ def load_model():
 
 tokenizer, model, device = load_model()
 
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
-tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")  
-model_qa = AutoModel.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad") 
+def classify_tone(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs)
+    label = outputs.logits.argmax(dim=1).cpu().item()
+    return "Hợp tác" if label == 1 else "Không hợp tác"
 
-sop_text = """
+# Cải tiến load RAG QA chain
+@st.cache_resource
+def load_rag_qa_chain():
+    try:
+        sop_text = """
         1. Nếu khách hàng phản ứng tiêu cực như "không có tiền", "khỏi gọi nữa":
            - Ngừng liên hệ trong ngày.
            - Gửi cảnh báo hoặc chuyển hồ sơ sang bộ phận giám sát.
@@ -52,14 +60,16 @@ sop_text = """
         8. Gợi ý khách trả góp nếu gặp khó khăn.
         9. Gọi lại sau 3 ngày nếu khách không sẵn sàng.
         """
+        docs = [Document(page_content=sop_text)]
+        texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-docs = [Document(page_content=sop_text)]
-texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
+        db = FAISS.from_documents(texts, embedding_model)
 
-# Create a FAISS vector store and cache it if SOP doesn't change often
-db = FAISS.from_documents(texts, embedding_model)
+        tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+        model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
 
-class ViQALLM(LLM):
+        class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
                 inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
                 with torch.no_grad():
@@ -76,25 +86,14 @@ class ViQALLM(LLM):
                 return "viqa-bert"
 
 
-def classify_tone(text):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    with torch.no_grad():
-        outputs = model(**inputs)
-    label = outputs.logits.argmax(dim=1).cpu().item()
-    return "Hợp tác" if label == 1 else "Không hợp tác"
-
-# Cải tiến load RAG QA chain
-@st.cache_resource
-def load_rag_qa_chain_vi():
-    try:
-        custom_llm = ViQALLM()
+        custom_llm = QA_LLM()
         return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
+
     except Exception as e:
         print(f"Error loading QA chain: {e}")
         raise e
 
-qa_chain = load_rag_qa_chain_vi()
+qa_chain = load_rag_qa_chain()
 
 # Cải tiến LLM pipe
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -209,7 +208,7 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text.strip() and agent_text.strip():
-        label, agent_eval, sop_answer, suggestion = eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=None)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=None)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
