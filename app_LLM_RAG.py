@@ -71,7 +71,9 @@ def load_rag_qa_chain():
 
         class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
-                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True)
+                docs = db.similarity_search(prompt, k=1)
+                context = docs[0].page_content if docs else sop_text
+                inputs = tokenizer_qa(prompt, context, return_tensors="pt", truncation=True)
                 with torch.no_grad():
                     outputs = model_qa(**inputs)
                 start_index = torch.argmax(outputs.start_logits)
@@ -81,9 +83,10 @@ def load_rag_qa_chain():
                 answer_tokens = inputs["input_ids"][0][start_index: end_index + 1]
                 return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
 
+
             @property
             def _llm_type(self) -> str:
-                return "viqa-bert"
+                return "custom-bert-qa"
 
 
         custom_llm = QA_LLM()
@@ -181,13 +184,13 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=
 
         label = classify_tone(customer_text)
         agent_eval = evaluate_agent_text(agent_text)
-        sop_answer = qa_chain.run(customer_text)
         suggestion = suggest_response(customer_text, region, label, use_llm=use_llm, sop_text=sop_answer)
+        sop_answer = qa_chain.run(customer_text)
 
         elapsed_time = time.time() - start_time
         st.write(f"Thời gian xử lý: {elapsed_time:.2f} giây.")
 
-        return label, agent_eval, sop_answer, suggestion
+        return label, agent_eval, suggestion, sop_answer
     except Exception as e:
         st.error(f"Đã xảy ra lỗi: {str(e)}")
         raise e
