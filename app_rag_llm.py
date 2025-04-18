@@ -222,7 +222,7 @@ if st.button("Đánh giá"):
         st.write(f"**Phân loại khách hàng:** {label}")
         st.write(f"**Đánh giá nhân viên:** {agent_eval}")
         st.write(f"**Gợi ý phản hồi:** {suggestion}")
-        if st.checkbox("Hiển thị SOP liên quan"):
-            st.markdown(f"**SOP:** {sop_answer}")
+        # if st.checkbox("Hiển thị SOP liên quan"):
+        st.write(f"**SOP liên quan:** {sop_answer}")
     else:
         st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
