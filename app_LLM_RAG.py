@@ -18,7 +18,7 @@ import os
 from memory_profiler import profile
 import objgraph
 
-# MODEL_NAME = "VietAI/vit5-base"
+
 
 def load_model():
     """Load your model here."""
@@ -63,15 +63,19 @@ def load_rag_qa_chain():
         docs = [Document(page_content=sop_text)]
         texts = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50).split_documents(docs)
 
-        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/distilbert-base-nli-stsb-mean-tokens")
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         db = FAISS.from_documents(texts, embedding_model)
 
-        tokenizer_qa = AutoTokenizer.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
-        model_qa = AutoModelForQuestionAnswering.from_pretrained("bert-large-uncased-whole-word-masking-finetuned-squad")
+        model_name_qa = "nguyenvulebinh/vi-mrc-large"
+        tokenizer_qa = AutoTokenizer.from_pretrained(model_name_qa)
+        model_qa = AutoModelForQuestionAnswering.from_pretrained(model_name_qa)
+        model_qa.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
 
         class QA_LLM(LLM):
             def _call(self, prompt: str, **kwargs) -> str:
-                inputs = tokenizer_qa(prompt, sop_text, return_tensors="pt", truncation=True, padding=True)
+                context = kwargs.get("context", sop_text)
+                inputs = tokenizer_qa(prompt, context, return_tensors="pt", truncation=True, padding=True)
                 inputs = {k: v.to(model_qa.device) for k, v in inputs.items()}
 
                 with torch.no_grad():
@@ -80,20 +84,20 @@ def load_rag_qa_chain():
                 start_index = torch.argmax(outputs.start_logits)
                 end_index = torch.argmax(outputs.end_logits)
 
-                if end_index < start_index:
+                if end_index < start_index or (end_index - start_index) > 50:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
 
                 answer_tokens = inputs["input_ids"][0][start_index : end_index + 1]
-                return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True)
-
+                return tokenizer_qa.decode(answer_tokens, skip_special_tokens=True).strip()
 
             @property
             def _llm_type(self) -> str:
                 return "custom-bert-qa"
 
-
         custom_llm = QA_LLM()
-        return RetrievalQA.from_chain_type(llm=custom_llm, retriever=db.as_retriever())
+        retriever = db.as_retriever()
+        return RetrievalQA.from_chain_type(llm=custom_llm, retriever=retriever)
+
 
     except Exception as e:
         print(f"Error loading QA chain: {e}")
@@ -177,7 +181,7 @@ def rule_based_response(text, region, label):
             return "Cảm ơn anh/chị đã phối hợp, hệ thống sẽ gửi lại xác nhận lịch thanh toán."
 
 
-@st.cache_data
+@st.cache_resource
 def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
         start_time = time.time()
@@ -217,7 +221,7 @@ if st.button("Đánh giá"):
         st.write(f"**Phân loại khách hàng:** {label}")
         st.write(f"**Đánh giá nhân viên:** {agent_eval}")
         st.write(f"**Gợi ý phản hồi:** {suggestion}")
-        st.write(f"**SOP liên quan:** {sop_answer}")
-
+        if st.checkbox("📘 Hiển thị SOP liên quan"):
+            st.markdown(f"**SOP:** {sop_answer}")
     else:
         st.warning("Vui lòng nhập đầy đủ nội dung khách hàng và nhân viên.")
