@@ -1,13 +1,13 @@
 torch
 streamlit
-transformers==4.51.3
+transformers>=4.51.3
 datasets
 evaluate
 sentence-transformers
 faiss-cpu
 langchain
 langchain-community
-openai==0.28
+openai>=0.28
 pyngrok
 huggingface_hub
 memory-profiler
