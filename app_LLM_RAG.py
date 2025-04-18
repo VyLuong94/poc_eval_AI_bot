@@ -18,7 +18,7 @@ from memory_profiler import profile
 import objgraph
 
 
-MODEL_NAME = "trantuandat/ViDeBERTa-Large-SQuAD2"
+MODEL_NAME = "vyluong/videberta-sop-qa"
 
 def load_model():
     """Load your model here."""
