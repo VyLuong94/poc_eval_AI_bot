@@ -105,7 +105,7 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 if not openai.api_key:
     raise Exception("Missing API key!")
 
-def generate_response(text, region, label, sop_text=None):
+def generate_response(text, region, label):
     prompt = f"""
 Bạn là nhân viên chăm sóc khách hàng của công ty tài chính, đang làm việc tại bộ phận thu hồi nợ.
 
@@ -113,9 +113,6 @@ Thông tin khách hàng:
 - Khu vực: {region}
 - Cảm xúc hiện tại: {label}
 - Phát ngôn của khách hàng: "{text}"
-
-SOP nội bộ liên quan (tham khảo khi phản hồi): 
-{sop_text or "Không có SOP phù hợp."}
 
 Yêu cầu:
 - Trả lời khách hàng bằng **tiếng Việt**, lịch sự, thân thiện, phù hợp hoàn cảnh.
@@ -178,13 +175,13 @@ def rule_based_response(text, region, label):
 
 
 @st.cache_data
-def eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=None):
+def eval_conversation(customer_text, agent_text, region, use_llm=True):
     try:
         start_time = time.time()
 
         label = classify_tone(customer_text)
         agent_eval = evaluate_agent_text(agent_text)
-        suggestion = suggest_response(customer_text, region, label, use_llm=use_llm, sop_text=sop_answer)
+        suggestion = suggest_response(customer_text, region, label, use_llm=use_llm)
         sop_answer = qa_chain.run(customer_text)
 
         elapsed_time = time.time() - start_time
@@ -195,9 +192,9 @@ def eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=
         st.error(f"Đã xảy ra lỗi: {str(e)}")
         raise e
 
-def suggest_response(text, region, label, use_llm=True, sop_text=None):
+def suggest_response(text, region, label, use_llm=True):
     if use_llm:
-        return generate_response(text, region, label, sop_text)
+        return generate_response(text, region, label)
     else:
         return rule_based_response(text, region, label)
 
@@ -211,7 +208,7 @@ region = st.selectbox("Vùng miền", ["Northern", "Central", "Southern"])
 
 if st.button("Đánh giá"):
     if customer_text.strip() and agent_text.strip():
-        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True, sop_text=None)
+        label, agent_eval, suggestion, sop_answer = eval_conversation(customer_text, agent_text, region, use_llm=True)
 
         st.subheader("Kết quả phân tích:")
         st.write(f"**Phân loại khách hàng:** {label}")
