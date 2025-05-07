@@ -118,24 +118,32 @@ def detect_intent(text):
 
 # --- SOP COMPLIANCE FUNCTIONS ---
 
-import pandas as pd
 
 def extract_sop_table(filepath, sheet_name=0):
     df = pd.read_excel(filepath, sheet_name=sheet_name)
 
-    df = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện', 'Điểm']]
+    required_cols = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện', 'Điểm']
+    df = df[[col for col in required_cols if col in df.columns]]
 
     df = df.dropna(subset=['Mã tiêu chí', 'Tên tiêu chí đánh giá'], how='all')
 
-    df['Tiêu chí'] = df['Mã tiêu chí'].astype(str).str.strip() + " - " + df['Tên tiêu chí đánh giá'].astype(str).str.strip()
+    for col in ['Hướng dẫn thực hiện', 'Điểm']:
+        if col not in df.columns:
+            df[col] = None
+
+    df['Tiêu chí'] = (
+        df['Mã tiêu chí'].astype(str).str.strip().fillna('') + " - " +
+        df['Tên tiêu chí đánh giá'].astype(str).str.strip().fillna('')
+    )
 
     result = df[['Mã tiêu chí', 'Tiêu chí', 'Hướng dẫn thực hiện', 'Điểm']].rename(columns={
         'Mã tiêu chí': 'STT',
         'Hướng dẫn thực hiện': 'Trạng thái'
     })
 
-    return result
+    result = result.reset_index(drop=True)
 
+    return result
 
 def split_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
