@@ -13,6 +13,7 @@ from collections import Counter
 import openai
 import httpx
 import torch
+import io
 import threading
 from io import BytesIO
 from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification, AutoTokenizer,RobertaForSequenceClassification, pipeline, AutoModelForTokenClassification,AutoModelForQuestionAnswering
@@ -120,16 +121,17 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
+    import pandas as pd
+    from io import BytesIO
 
-    if isinstance(file_path, list):
-        return file_path 
+    if isinstance(file_path, BytesIO):  
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
     elif isinstance(file_path, pd.DataFrame):
-        df = file_path  
+        df = file_path
     else:
         df = pd.read_excel(file_path, sheet_name=sheet_name)
 
     sop_items = []
-
     df = df.ffill(axis=0)
 
     for index, row in df.iterrows():
@@ -787,7 +789,7 @@ def main():
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
                     sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
-                        transcript, sop_data, model, threshold=0.7
+                        transcript, uploaded_excel_file.getvalue(), model, threshold=0.7
                     )
 
                     st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
