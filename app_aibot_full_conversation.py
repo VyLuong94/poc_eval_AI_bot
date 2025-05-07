@@ -120,22 +120,25 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
-    df = pd.read_excel(file_path, sheet_name=sheet_name)
+
+    if isinstance(file_path, list):
+        return file_path 
+    elif isinstance(file_path, pd.DataFrame):
+        df = file_path  
+    else:
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
 
     sop_items = []
 
-    # Handle merged cells by forward filling NaN values
-    df = df.ffill(axis=0) 
+    df = df.ffill(axis=0)
 
-    # Iterate over rows and extract necessary columns
     for index, row in df.iterrows():
-        code = str(row['Mã Tiêu Chí']).strip()  # Code column
-        title = str(row['Tên Tiêu Chí Đánh Giá']).strip()  # Title column
-        score = row['Điểm'] if not pd.isna(row['Điểm']) else None  # Score column
-        implementation = str(row['Hướng Dẫn Thực Hiện']).strip()  # Implementation guide
-        evaluation_guide = str(row['Hướng Dẫn Đánh Giá']).strip()  # Evaluation guide
+        code = str(row['Mã Tiêu Chí']).strip()
+        title = str(row['Tên Tiêu Chí Đánh Giá']).strip()
+        score = row['Điểm'] if not pd.isna(row['Điểm']) else None
+        implementation = str(row['Hướng Dẫn Thực Hiện']).strip()
+        evaluation_guide = str(row['Hướng Dẫn Đánh Giá']).strip()
 
-        # If code and title are both not empty, add them to the list
         if code and title:
             full_text = f"{code} - {title}"
             sop_items.append({
