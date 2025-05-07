@@ -134,7 +134,7 @@ def calculate_similarity(sentence, sop_item, model):
     return similarity.item()
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
-def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.8):
+def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.3):
     sop_items = extract_sop_items(combined_text)
     agent_sentences = split_into_sentences(transcript)
     # Đánh giá sự tuân thủ của từng câu
@@ -474,7 +474,6 @@ def safe_tokenize(text, tokenizer, max_length=512):
     try:
         text = clean_text(text)
 
-        # Tokenize text
         inputs = tokenizer(
             text,
             return_tensors="pt",
@@ -501,7 +500,6 @@ def classify_tone(text, chunk_size=None):
         # Move to device
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
-        # Check if input_ids exceed vocab size
         max_id = inputs['input_ids'].max().item()
         if max_id >= model.config.vocab_size:
             return None  # skip this sample
@@ -689,7 +687,7 @@ def main():
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
                     sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
-                        transcript, sop_data, model, threshold=0.8
+                        transcript, sop_data, model, threshold=0.3
                     )
 
                     st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
