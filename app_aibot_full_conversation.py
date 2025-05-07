@@ -162,8 +162,15 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
             if any(re.search(r"cảm ơn", sentence.lower()) and re.search(r"chào", sentence.lower()) for sentence in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+        elif "đơn vị gọi đến" in sop_item.lower():
+            if any(re.search(r"phòng công nợ", sentence.lower()) and re.search(r"công ty tài chính hd saigon", sentence.lower()) for sentence in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+        elif "lời nhắn" in sop_item.lower():
+            if any(re.search(r"nhắn khách hàng gọi lại công ty theo số 1900558854", sentence.lower()) for sentence in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
         else:
-            # Kiểm tra tương đồng cho các tiêu chí còn lại
             matched = any(
                 calculate_similarity(sentence, sop_item, model) >= threshold
                 for sentence in agent_sentences
@@ -201,7 +208,6 @@ def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
         model,
         threshold=threshold
     )
-
 
 
 
@@ -678,11 +684,6 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
 
     st.write("**Bảng đánh giá tuân thủ SOP:**")
     st.dataframe(df, use_container_width=True)  
-
-    st.write("**Tỷ lệ tuân thủ:**")
-    st.write(f"→ Tỷ lệ tuân thủ theo mục SOP     : **{sop_rate:.2f}%**")
-    st.write(f"→ Tỷ lệ tuân thủ theo câu nói    : **{sentence_rate:.2f}%**")
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
