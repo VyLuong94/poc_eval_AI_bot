@@ -199,7 +199,16 @@ def detect_sheet_from_text(agent_text):
     
     agent_text = agent_text.lower()
 
-    if re.search(r"(cho hỏi đây có phải|anh/chị là người nhà|em là gì của|xin phép liên hệ.*người thân)", agent_text):
+    # Các cụm từ liên quan đến người thân
+    patterns = [
+        r"cho hỏi.*có phải.*(vợ|chồng|con|ba|mẹ|người nhà|người thân)",
+        r"(vợ|chồng|con) của anh|chị",
+        r"truyền lời nhắn.*(giúp|dùm).*anh|chị",
+        r"chị có phải là.*(vợ của|chồng của|con của)",
+        r"(vợ|chồng|con).*đang nghe máy",
+    ]
+
+    if any(re.search(p, agent_text) for p in patterns):
         return 'Tiêu chí giám sát cuộc gọi NT'
 
     return 'Tiêu chí giám sát cuộc gọi KH'
