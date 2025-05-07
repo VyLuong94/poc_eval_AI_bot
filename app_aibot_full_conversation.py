@@ -686,7 +686,7 @@ def main():
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
                     sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
-                        transcript, sop_data, model, threshold=0.7
+                        transcript, sop_data, model, threshold=0.5
                     )
 
                     st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
