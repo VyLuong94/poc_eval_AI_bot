@@ -177,7 +177,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_data, threshold=0.7):
+def evaluate_sop_compliance(agent_transcript, sop_data,model, threshold=0.7):
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     selected_sheet = detect_sheet_from_text(agent_transcript)
