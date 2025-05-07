@@ -135,11 +135,11 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     df = df.ffill(axis=0)
 
     for index, row in df.iterrows():
-        code = str(row['Mã Tiêu Chí']).strip()
-        title = str(row['Tên Tiêu Chí Đánh Giá']).strip()
+        code = str(row['Mã tiêu chí']).strip()
+        title = str(row['Tên tiêu chí đánh giá']).strip()
         score = row['Điểm'] if not pd.isna(row['Điểm']) else None
-        implementation = str(row['Hướng Dẫn Thực Hiện']).strip()
-        evaluation_guide = str(row['Hướng Dẫn Đánh Giá']).strip()
+        implementation = str(row['Hướng dẫn thực hiện']).strip()
+        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
         if code and title:
             full_text = f"{code} - {title}"
