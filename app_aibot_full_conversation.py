@@ -118,27 +118,24 @@ def detect_intent(text):
 
 # --- SOP COMPLIANCE FUNCTIONS ---
 
-def extract_sop_items_and_scores(combined_text):
-    lines = [line.strip() for line in combined_text.strip().split("\n") if line.strip()]
-    sop_items = []
-    current_item = ""
-    current_score = None
+import pandas as pd
 
-    for line in lines:
-        if line.strip().isdigit():
-            current_score = int(line.strip())
-            continue
-        if re.match(r"^\d+(\.\d+)*\.", line):
-            if current_item:
-                sop_items.append((current_item.strip(), current_score if current_score is not None else 5))
-            current_item = line
-        else:
-            current_item += " " + line
+def extract_sop_table(filepath, sheet_name=0):
+    df = pd.read_excel(filepath, sheet_name=sheet_name)
 
-    if current_item:
-        sop_items.append((current_item.strip(), current_score if current_score is not None else 5))
+    df = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện', 'Điểm']]
 
-    return sop_items
+    df = df.dropna(subset=['Mã tiêu chí', 'Tên tiêu chí đánh giá'], how='all')
+
+    df['Tiêu chí'] = df['Mã tiêu chí'].astype(str).str.strip() + " - " + df['Tên tiêu chí đánh giá'].astype(str).str.strip()
+
+    result = df[['Mã tiêu chí', 'Tiêu chí', 'Hướng dẫn thực hiện', 'Điểm']].rename(columns={
+        'Mã tiêu chí': 'STT',
+        'Hướng dẫn thực hiện': 'Trạng thái'
+    })
+
+    return result
+
 
 def split_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
@@ -153,7 +150,7 @@ def calculate_similarity(sentence, sop_item, model):
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_sop_items_and_scores(combined_text)
+    sop_items = extract_criteria_and_scores(combined_text)
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
@@ -703,7 +700,7 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
     df = df.reset_index(drop=True)
 
     st.write("**Bảng đánh giá tuân thủ SOP:**")
-    st.dataframe(df, use_container_width=True)  
+    st.dataframe(df.style.hide(axis="index"), use_container_width=True)  
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
