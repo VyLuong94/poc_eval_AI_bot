@@ -177,11 +177,11 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
     sop_compliance_results = []
     sop_violation_items = []
 
-    for idx, (sop_item, score) in enumerate(sop_items, 1):
+    for idx, sop_item in enumerate(sop_items, 1):
         matched = False
         status = "Chưa tuân thủ"
 
-        lower_item = sop_item.lower()
+        lower_item = sop_item['full_text'].lower()
 
         # SOP Compliance Check
         if "ghi nhận kết quả cuộc gọi" in lower_item:
@@ -200,22 +200,22 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
                 matched = True
                 status = "Đã tuân thủ"
         else:
-            if any(calculate_similarity(s, sop_item, model) >= threshold for s in agent_sentences):
+            if any(calculate_similarity(s, sop_item['full_text'], model) >= threshold for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
 
         sop_compliance_results.append({
             "STT": idx,
-            "Tiêu chí": sop_item,
+            "Tiêu chí": sop_item['full_text'],
             "Trạng thái": status,
-            "Điểm": score
+            "Điểm": sop_item['score']
         })
 
         if status == "Chưa tuân thủ":
             sop_violation_items.append({
                 "STT": idx,
-                "Tiêu chí": sop_item,
-                "Điểm": score
+                "Tiêu chí": sop_item['full_text'],
+                "Điểm": sop_item['score']
             })
 
     sop_compliance_rate = (
