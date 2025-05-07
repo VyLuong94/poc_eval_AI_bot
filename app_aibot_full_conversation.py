@@ -635,7 +635,6 @@ st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Parallel execution of the QA chain and transcription
         future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
         future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
 
