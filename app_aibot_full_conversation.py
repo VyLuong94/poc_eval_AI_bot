@@ -728,9 +728,9 @@ def main():
                     print_sop_compliance_table(sop_results, sop_rate, sentence_rate)
 
                     if sop_violations:
-                        st.markdown("Các mục chưa tuân thủ:")
-                        for idx, sop_item in sop_violations:
-                            st.markdown(f"- {idx}. {sop_item}")
+                        st.markdown("### Các mục chưa tuân thủ:")
+                        for violation in sop_violations:
+                            st.markdown(f"- **{violation['STT']}.** {violation['Tiêu chí']}")
                     else:
                         st.success("Tất cả các mục trong SOP đã được tuân thủ!")
 
