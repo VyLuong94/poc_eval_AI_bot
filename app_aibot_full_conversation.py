@@ -163,7 +163,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
                 matched = True
                 status = "Đã tuân thủ"
         elif "đơn vị gọi đến" in sop_item.lower():
-            if any(re.search(r"phòng công nợ", sentence.lower()) and re.search(r"công ty tài chính hd saigon", sentence.lower()) for sentence in agent_sentences):
+            if any(re.search(r"phòng công nợ", sentence.lower()) and re.search(r"công ty tài chính hd sai", sentence.lower()) for sentence in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
         elif "lời nhắn" in sop_item.lower():
