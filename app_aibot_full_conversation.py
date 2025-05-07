@@ -137,38 +137,53 @@ def calculate_similarity(sentence, sop_item, model):
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
     sop_items = extract_sop_items(combined_text)
     agent_sentences = split_into_sentences(transcript)
-    # Đánh giá sự tuân thủ của từng câu
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    compliant_sentences = 0
-    for sentence in agent_sentences:
-        if any(calculate_similarity(sentence, sop_item, model) >= threshold for sop_item in sop_items):
-            compliant_sentences += 1
 
-    sentence_compliance_percentage = (compliant_sentences / len(agent_sentences)) * 100 if len(agent_sentences) > 0 else 0
+    # Đánh giá mức độ tuân thủ từng câu
+    compliant_sentences = sum(
+        any(calculate_similarity(sentence, sop_item, model) >= threshold for sop_item in sop_items)
+        for sentence in agent_sentences
+    )
+    sentence_compliance_percentage = (
+        (compliant_sentences / len(agent_sentences)) * 100 if agent_sentences else 0
+    )
 
-    # Đánh giá sự tuân thủ của từng mục SOP
+    # Đánh giá từng mục SOP
     sop_compliance_results = []
     sop_violation_items = []
-    for idx, sop_item in enumerate(sop_items, 1):
-        matched = any(calculate_similarity(sentence, sop_item, model) >= threshold for sentence in agent_sentences)
-        status = "Đã tuân thủ" if matched else "Chưa tuân thủ"
-        sop_compliance_results.append((idx, sop_item, status))
-        if status == "Chưa tuân thủ":
-            sop_violation_items.append((idx, sop_item))
 
-    sop_compliance_rate = sum(1 for _, _, status in sop_compliance_results if status == "Đã tuân thủ") / len(sop_compliance_results) * 100 if len(sop_compliance_results) > 0 else 0
+    for idx, sop_item in enumerate(sop_items, 1):
+        matched = any(
+            calculate_similarity(sentence, sop_item, model) >= threshold
+            for sentence in agent_sentences
+        )
+        status = "Đã tuân thủ" if matched else "Chưa tuân thủ"
+        sop_compliance_results.append({
+            "STT": idx,
+            "Tiêu chí": sop_item,
+            "Trạng thái": status
+        })
+        if status == "Chưa tuân thủ":
+            sop_violation_items.append({
+                "STT": idx,
+                "Tiêu chí": sop_item
+            })
+
+    sop_compliance_rate = (
+        sum(1 for item in sop_compliance_results if item["Trạng thái"] == "Đã tuân thủ") / len(sop_compliance_results) * 100
+        if sop_compliance_results else 0
+    )
 
     return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, sop_violation_items
 
 
-def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
-    # Xác định loại cuộc gọi dựa trên nội dung transcript
+
+def evaluate_sop_compliance(agent_transcript, sop_data, threshold=0.7):
+    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
     selected_sheet = detect_sheet_from_text(agent_transcript)
 
-    # Lấy danh sách các mục SOP phù hợp
     sop_items_text = "\n".join(sop_data[selected_sheet])
 
-    # Tính toán tuân thủ SOP
     return calculate_sop_compliance_by_sentences(
         agent_transcript,
         sop_items_text,
@@ -177,12 +192,18 @@ def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
     )
 
 
+
 def detect_sheet_from_text(agent_text):
-    keywords_relative = ['vợ', 'chồng', 'con', 'người thân', 'gia đình', 'người nhà']
-    if any(keyword in agent_text.lower() for keyword in keywords_relative):
-        return 'Tiêu chí giám sát cuộc gọi NT'
-    else:
+    if not isinstance(agent_text, str):
         return 'Tiêu chí giám sát cuộc gọi KH'
+    
+    agent_text = agent_text.lower()
+
+    if re.search(r"(cho hỏi đây có phải|anh/chị là người nhà|em là gì của|xin phép liên hệ.*người thân)", agent_text):
+        return 'Tiêu chí giám sát cuộc gọi NT'
+
+    return 'Tiêu chí giám sát cuộc gọi KH'
+
 
 
 # --- ANALYSIS FUNCTION ---
@@ -631,6 +652,18 @@ def cleanup_memory():
     objgraph.show_growth(limit=10)
 
 
+def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
+    df = pd.DataFrame(sop_results, columns=['STT', 'Tiêu chí', 'Trạng thái'])
+
+    st.write("**Bảng đánh giá tuân thủ SOP:**")
+    st.dataframe(df, use_container_width=True)  
+
+    st.write("**Tỷ lệ tuân thủ:**")
+    st.write(f"→ Tỷ lệ tuân thủ theo mục SOP     : **{sop_rate:.2f}%**")
+    st.write(f"→ Tỷ lệ tuân thủ theo câu nói    : **{sentence_rate:.2f}%**")
+
+
+
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
@@ -692,21 +725,17 @@ def main():
                     st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
                     st.write(f"Tỷ lệ tuân thủ câu nói: **{sentence_rate:.2f}%**")
 
+                    print_sop_compliance_table(sop_results, sop_rate, sentence_rate)
+
                     if sop_violations:
                         st.markdown("Các mục chưa tuân thủ:")
                         for idx, sop_item in sop_violations:
-                            st.markdown(f"{idx}. {sop_item}")
+                            st.markdown(f"- {idx}. {sop_item}")
                     else:
                         st.success("Tất cả các mục trong SOP đã được tuân thủ!")
+
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá SOP: {e}")
-
-                st.subheader("Phản hồi gợi ý:")
-                try:
-                    suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                    st.write(suggestion)
-                except Exception as e:
-                    st.error(f"Lỗi khi gợi ý phản hồi: {e}")
 
                 cleanup_memory()
 
