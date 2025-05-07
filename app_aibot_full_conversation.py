@@ -152,11 +152,23 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
     sop_violation_items = []
 
     for idx, sop_item in enumerate(sop_items, 1):
-        matched = any(
-            calculate_similarity(sentence, sop_item, model) >= threshold
-            for sentence in agent_sentences
-        )
-        status = "Đã tuân thủ" if matched else "Chưa tuân thủ"
+        matched = False
+        status = "Chưa tuân thủ"
+
+        if "ghi nhận kết quả cuộc gọi" in sop_item.lower():
+            matched = True
+            status = "Đã tuân thủ"
+        elif "cám ơn và chào khách hàng" in sop_item.lower():
+            if any(re.search(r"cảm ơn", sentence.lower()) and re.search(r"chào", sentence.lower()) for sentence in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+        else:
+            # Kiểm tra tương đồng cho các tiêu chí còn lại
+            matched = any(
+                calculate_similarity(sentence, sop_item, model) >= threshold
+                for sentence in agent_sentences
+            )
+
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item,
@@ -176,8 +188,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
     return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, sop_violation_items
 
 
-
-def evaluate_sop_compliance(agent_transcript, sop_data,model, threshold=0.7):
+def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     selected_sheet = detect_sheet_from_text(agent_transcript)
@@ -193,13 +204,13 @@ def evaluate_sop_compliance(agent_transcript, sop_data,model, threshold=0.7):
 
 
 
+
 def detect_sheet_from_text(agent_text):
     if not isinstance(agent_text, str):
         return 'Tiêu chí giám sát cuộc gọi KH'
     
     agent_text = agent_text.lower()
 
-    # Các cụm từ liên quan đến người thân
     patterns = [
     r"cho hỏi.*(vợ|chồng|con|ba|mẹ|người nhà|người thân).*có phải.*đang nghe máy",
     r"(chị|anh|em) có phải là.*(vợ|chồng|con|người thân) của",
