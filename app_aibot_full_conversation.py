@@ -233,21 +233,27 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_excel_file_path, model=None, sheet_name=0, threshold=0.7):
+def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, sheet_name=0, threshold=0.7):
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-    # Load SOP items from Excel
-    sop_items = extract_sop_items_from_excel(sop_excel_file_path, sheet_name=sheet_name)
+    if isinstance(sop_excel_file, bytes):
+        sop_excel_file = io.BytesIO(sop_excel_file)
 
-    # Calculate compliance
-    return calculate_sop_compliance_by_sentences(
-        agent_transcript,
-        sop_items,
-        model,
-        threshold=threshold
-    )
+    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+
+    try:
+        sop_results, sop_rate, sentence_rate, sop_violations = calculate_sop_compliance_by_sentences(
+            agent_transcript,
+            sop_items,
+            model,
+            threshold=threshold
+        )
+        return sop_results, sop_rate, sentence_rate, sop_violations
+    except Exception as e:
+        return f"Error calculating SOP compliance: {e}"
+
 
 
 def detect_sheet_from_text(agent_text):
