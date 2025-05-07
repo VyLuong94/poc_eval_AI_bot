@@ -599,7 +599,6 @@ def classify_tone(text, chunk_size=None):
     text = clean_text(text)
 
     def predict(inputs):
-        # Move to device
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
         max_id = inputs['input_ids'].max().item()
