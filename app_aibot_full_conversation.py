@@ -121,18 +121,25 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
-    import pandas as pd
-    from io import BytesIO
-
     if isinstance(file_path, BytesIO):  
         df = pd.read_excel(file_path, sheet_name=sheet_name)
-    elif isinstance(file_path, pd.DataFrame):
+    elif isinstance(file_path, pd.DataFrame): 
         df = file_path
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        df = pd.read_excel(file_path, sheet_name=sheet_name)  
+    
+    df.columns = df.columns.str.strip()
 
+    print("Column names in DataFrame:", df.columns)
+
+    required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+
+    if missing_columns:
+        raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
+    
     sop_items = []
-    df = df.ffill(axis=0)
+    df = df.ffill(axis=0)  
 
     for index, row in df.iterrows():
         code = str(row['Mã tiêu chí']).strip()
