@@ -120,13 +120,12 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
-    # Load the Excel sheet
     df = pd.read_excel(file_path, sheet_name=sheet_name)
 
     sop_items = []
 
     # Handle merged cells by forward filling NaN values
-    df = df.ffill(axis=0)  # Fill NaN values downwards (for merged cells)
+    df = df.ffill(axis=0) 
 
     # Iterate over rows and extract necessary columns
     for index, row in df.iterrows():
@@ -162,14 +161,14 @@ def calculate_similarity(sentence, sop_item, model):
     return similarity.item()
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
-def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_sop_items_from_excel(combined_text)
+def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.7):
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
-        any(calculate_similarity(sentence, sop_item, model) >= threshold for sop_item, _ in sop_items)
+        any(calculate_similarity(sentence, sop_item['full_text'], model) >= threshold for sop_item in sop_items)
         for sentence in agent_sentences
     )
+
     sentence_compliance_percentage = (
         (compliant_sentences / len(agent_sentences)) * 100 if agent_sentences else 0
     )
@@ -183,7 +182,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
 
         lower_item = sop_item['full_text'].lower()
 
-        # SOP Compliance Check
+        # Custom compliance logic
         if "ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
@@ -223,31 +222,26 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
         if sop_compliance_results else 0
     )
 
-    # Extract the scores and format the non-compliant items
-    sop_violation_scores = [
-        {"STT": item["STT"], "Tiêu chí": item["Tiêu chí"], "Điểm": item["Điểm"]}
-        for item in sop_violation_items
-    ]
-
-    # Format the violation list in a readable way
     formatted_violations = "\n".join(
-        [f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_scores]
+        [f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items]
     )
 
     return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+def evaluate_sop_compliance(agent_transcript, sop_excel_file_path, model=None, sheet_name=0, threshold=0.7):
 
-    selected_sheet = detect_sheet_from_text(agent_transcript)
+    if model is None:
+        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-    sop_items_text = "\n".join(sop_data[selected_sheet])
+    # Load SOP items from Excel
+    sop_items = extract_sop_items_from_excel(sop_excel_file_path, sheet_name=sheet_name)
 
+    # Calculate compliance
     return calculate_sop_compliance_by_sentences(
         agent_transcript,
-        sop_items_text,
+        sop_items,
         model,
         threshold=threshold
     )
