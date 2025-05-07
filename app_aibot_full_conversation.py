@@ -119,27 +119,35 @@ def detect_intent(text):
 # --- SOP COMPLIANCE FUNCTIONS ---
 
 
-def extract_sop_items_from_text(text):
-    sop_items = []
-    current_score = None
+def extract_sop_items_from_excel(file_path, sheet_name=0):
+    # Load the Excel sheet
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
 
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        # Giả sử dòng có format: "1.1 - Mở đầu cuộc gọi" và có điểm ở cuối dòng
-        match = re.match(r"^(.+?)\s*-\s*(.+?)(?:\s+\[(\d+(?:\.\d+)?)\])?$", line)
-        if match:
-            code = match.group(1).strip()
-            title = match.group(2).strip()
-            score = float(match.group(3)) if match.group(3) else None
+    sop_items = []
+
+    # Handle merged cells by forward filling NaN values
+    df = df.ffill(axis=0)  # Fill NaN values downwards (for merged cells)
+
+    # Iterate over rows and extract necessary columns
+    for index, row in df.iterrows():
+        code = str(row['Mã Tiêu Chí']).strip()  # Code column
+        title = str(row['Tên Tiêu Chí Đánh Giá']).strip()  # Title column
+        score = row['Điểm'] if not pd.isna(row['Điểm']) else None  # Score column
+        implementation = str(row['Hướng Dẫn Thực Hiện']).strip()  # Implementation guide
+        evaluation_guide = str(row['Hướng Dẫn Đánh Giá']).strip()  # Evaluation guide
+
+        # If code and title are both not empty, add them to the list
+        if code and title:
             full_text = f"{code} - {title}"
-            sop_items.append((full_text, score))
-        else:
-            # Nếu không match định dạng, thêm toàn bộ dòng
-            sop_items.append((line, None))
+            sop_items.append({
+                'full_text': full_text,
+                'score': score,
+                'implementation': implementation,
+                'evaluation_guide': evaluation_guide
+            })
 
     return sop_items
+
 
 
 def split_into_sentences(text):
@@ -155,7 +163,7 @@ def calculate_similarity(sentence, sop_item, model):
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_sop_items_from_text(combined_text)
+    sop_items = extract_sop_items_from_excel(combined_text)
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
@@ -175,6 +183,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
 
         lower_item = sop_item.lower()
 
+        # SOP Compliance Check
         if "ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
@@ -214,7 +223,19 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
         if sop_compliance_results else 0
     )
 
-    return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, sop_violation_items
+    # Extract the scores and format the non-compliant items
+    sop_violation_scores = [
+        {"STT": item["STT"], "Tiêu chí": item["Tiêu chí"], "Điểm": item["Điểm"]}
+        for item in sop_violation_items
+    ]
+
+    # Format the violation list in a readable way
+    formatted_violations = "\n".join(
+        [f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_scores]
+    )
+
+    return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
+
 
 
 def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
