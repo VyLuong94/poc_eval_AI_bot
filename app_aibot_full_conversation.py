@@ -119,31 +119,28 @@ def detect_intent(text):
 # --- SOP COMPLIANCE FUNCTIONS ---
 
 
-def extract_sop_table(filepath, sheet_name=0):
-    df = pd.read_excel(filepath, sheet_name=sheet_name)
+def extract_sop_items_from_text(text):
+    sop_items = []
+    current_score = None
 
-    required_cols = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện', 'Điểm']
-    df = df[[col for col in required_cols if col in df.columns]]
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Giả sử dòng có format: "1.1 - Mở đầu cuộc gọi" và có điểm ở cuối dòng
+        match = re.match(r"^(.+?)\s*-\s*(.+?)(?:\s+\[(\d+(?:\.\d+)?)\])?$", line)
+        if match:
+            code = match.group(1).strip()
+            title = match.group(2).strip()
+            score = float(match.group(3)) if match.group(3) else None
+            full_text = f"{code} - {title}"
+            sop_items.append((full_text, score))
+        else:
+            # Nếu không match định dạng, thêm toàn bộ dòng
+            sop_items.append((line, None))
 
-    df = df.dropna(subset=['Mã tiêu chí', 'Tên tiêu chí đánh giá'], how='all')
+    return sop_items
 
-    for col in ['Hướng dẫn thực hiện', 'Điểm']:
-        if col not in df.columns:
-            df[col] = None
-
-    df['Tiêu chí'] = (
-        df['Mã tiêu chí'].astype(str).str.strip().fillna('') + " - " +
-        df['Tên tiêu chí đánh giá'].astype(str).str.strip().fillna('')
-    )
-
-    result = df[['Mã tiêu chí', 'Tiêu chí', 'Hướng dẫn thực hiện', 'Điểm']].rename(columns={
-        'Mã tiêu chí': 'STT',
-        'Hướng dẫn thực hiện': 'Trạng thái'
-    })
-
-    result = result.reset_index(drop=True)
-
-    return result
 
 def split_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
@@ -158,7 +155,7 @@ def calculate_similarity(sentence, sop_item, model):
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_sop_table(combined_text)
+    sop_items = extract_sop_items_from_text(combined_text)
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
