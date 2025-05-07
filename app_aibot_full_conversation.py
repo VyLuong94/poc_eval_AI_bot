@@ -118,9 +118,27 @@ def detect_intent(text):
 
 # --- SOP COMPLIANCE FUNCTIONS ---
 
-def extract_sop_items(sop_text):
-    sop_items = re.findall(r"\d+\.\s+(.*?)(?=\n\d+\.|\Z)", sop_text.strip(), re.DOTALL)
-    return [item.strip().replace('\n', ' ') for item in sop_items]
+def extract_sop_items_and_scores(combined_text):
+    lines = [line.strip() for line in combined_text.strip().split("\n") if line.strip()]
+    sop_items = []
+    current_item = ""
+    current_score = None
+
+    for line in lines:
+        if line.strip().isdigit():
+            current_score = int(line.strip())
+            continue
+        if re.match(r"^\d+(\.\d+)*\.", line):
+            if current_item:
+                sop_items.append((current_item.strip(), current_score if current_score is not None else 5))
+            current_item = line
+        else:
+            current_item += " " + line
+
+    if current_item:
+        sop_items.append((current_item.strip(), current_score if current_score is not None else 5))
+
+    return sop_items
 
 def split_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
@@ -135,56 +153,58 @@ def calculate_similarity(sentence, sop_item, model):
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_sop_items(combined_text)
+    sop_items = extract_sop_items_and_scores(combined_text)
     agent_sentences = split_into_sentences(transcript)
 
-    # Đánh giá mức độ tuân thủ từng câu
     compliant_sentences = sum(
-        any(calculate_similarity(sentence, sop_item, model) >= threshold for sop_item in sop_items)
+        any(calculate_similarity(sentence, sop_item, model) >= threshold for sop_item, _ in sop_items)
         for sentence in agent_sentences
     )
     sentence_compliance_percentage = (
         (compliant_sentences / len(agent_sentences)) * 100 if agent_sentences else 0
     )
 
-    # Đánh giá từng mục SOP
     sop_compliance_results = []
     sop_violation_items = []
 
-    for idx, sop_item in enumerate(sop_items, 1):
+    for idx, (sop_item, score) in enumerate(sop_items, 1):
         matched = False
         status = "Chưa tuân thủ"
 
-        if "ghi nhận kết quả cuộc gọi" in sop_item.lower():
+        lower_item = sop_item.lower()
+
+        if "ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
-        elif "cám ơn và chào khách hàng" in sop_item.lower():
-            if any(re.search(r"cảm ơn", sentence.lower()) and re.search(r"chào", sentence.lower()) for sentence in agent_sentences):
+        elif "cám ơn và chào khách hàng" in lower_item:
+            if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
-        elif "đơn vị gọi đến" in sop_item.lower():
-            if any(re.search(r"phòng công nợ", sentence.lower()) and re.search(r"công ty tài chính hd sai", sentence.lower()) for sentence in agent_sentences):
+        elif "đơn vị gọi đến" in lower_item:
+            if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
-        elif "lời nhắn" in sop_item.lower():
-            if any(re.search(r"nhắn khách hàng gọi lại công ty theo số 1900558854", sentence.lower()) for sentence in agent_sentences):
+        elif "lời nhắn" in lower_item:
+            if any("1900558854" in s for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
         else:
-            matched = any(
-                calculate_similarity(sentence, sop_item, model) >= threshold
-                for sentence in agent_sentences
-            )
+            if any(calculate_similarity(s, sop_item, model) >= threshold for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
 
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item,
-            "Trạng thái": status
+            "Trạng thái": status,
+            "Điểm": score
         })
+
         if status == "Chưa tuân thủ":
             sop_violation_items.append({
                 "STT": idx,
-                "Tiêu chí": sop_item
+                "Tiêu chí": sop_item,
+                "Điểm": score
             })
 
     sop_compliance_rate = (
@@ -208,7 +228,6 @@ def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
         model,
         threshold=threshold
     )
-
 
 
 def detect_sheet_from_text(agent_text):
