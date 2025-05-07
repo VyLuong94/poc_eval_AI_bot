@@ -150,7 +150,7 @@ def calculate_similarity(sentence, sop_item, model):
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
 def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
-    sop_items = extract_criteria_and_scores(combined_text)
+    sop_items = extract_sop_table(combined_text)
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
