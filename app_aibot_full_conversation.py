@@ -134,7 +134,7 @@ def calculate_similarity(sentence, sop_item, model):
     return similarity.item()
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
-def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.8):
+def calculate_sop_compliance_by_sentences(transcript, combined_text, model, threshold=0.7):
     sop_items = extract_sop_items(combined_text)
     agent_sentences = split_into_sentences(transcript)
     # Đánh giá sự tuân thủ của từng câu
@@ -161,7 +161,7 @@ def calculate_sop_compliance_by_sentences(transcript, combined_text, model, thre
     return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, sop_violation_items
 
 
-def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.8):
+def evaluate_sop_compliance(agent_transcript, sop_data, model, threshold=0.7):
     # Xác định loại cuộc gọi dựa trên nội dung transcript
     selected_sheet = detect_sheet_from_text(agent_transcript)
 
@@ -687,7 +687,7 @@ def main():
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
                     sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
-                        transcript, sop_data, model, threshold=0.8
+                        transcript, sop_data, model, threshold=0.7
                     )
 
                     st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
