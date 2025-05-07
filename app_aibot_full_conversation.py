@@ -525,7 +525,6 @@ def classify_tone(text, chunk_size=None):
         return [{"text": text, "tone": tone}]
 
     else:
-        # --- Chia đoạn nhỏ và phân loại từng chunk ---
         sentences = split_into_sentences(text)
         chunks = [' '.join(sentences[i:i+chunk_size]) for i in range(0, len(sentences), chunk_size)]
 
@@ -555,9 +554,6 @@ def classify_tone_with_llm(text):
     - Is this the customer's sentence?
     - If yes, what is the cooperation tone?
     """
-    if client is None:
-        import openai
-        client = openai.OpenAI()  # Hoặc truyền client đã định nghĩa
 
     prompt = f"""
     Bạn là một trợ lý AI cho phân tích cuộc gọi trong thu hồi nợ.
@@ -645,13 +641,11 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
         future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
         future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
 
-        # Wait for both results
         qa_llm, combined_text, sop_data = future_chain.result()
         transcript = future_transcript.result()
 
     return qa_llm, combined_text, sop_data, transcript
 
-# Main app logic
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh", type=["mp3", "wav"])
@@ -663,22 +657,19 @@ def main():
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
                 try:
-                    # Process files in parallel
                     qa_chain, combined_text, sop_data, transcript = process_files(uploaded_excel_file, uploaded_audio_file)
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
 
-                # Display transcript
                 st.subheader("Văn bản thu được:")
                 st.write(transcript)
 
-                # Call analysis function for tone and intent detection
+          
                 analysis_result = analyze_call_transcript(transcript)
                 tone_chunks = analysis_result["tone_chunks"]
                 customer_label = classify_tone(transcript, chunk_size=3)
 
-                # Display the analysis result
                 st.subheader("Kết quả phân tích:")
                 st.write(f"Cảm xúc của khách hàng: {customer_label}")
                 st.write(f"Thực thể được nhận diện: {analysis_result['named_entities']}")
@@ -687,17 +678,14 @@ def main():
                 st.text(analysis_result["interaction_summary"])
 
 
-                # Display summary of tones in the transcript
                 st.header("Tổng hợp cảm xúc trong câu của khách hàng")
                 for tone, count in tone_chunks["tone_summary"].items():
                     st.write(f"- {tone}: {count} câu")
 
-                # Display important chunks with tone
                 st.subheader("Các đoạn nổi bật:")
                 for chunk in tone_chunks["important_chunks"]:
                     st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
 
-                # Evaluate SOP compliance
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
                     sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
@@ -716,7 +704,6 @@ def main():
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá SOP: {e}")
 
-                # Generate response suggestion based on customer tone
                 st.subheader("Phản hồi gợi ý:")
                 try:
                     suggestion = suggest_response(transcript, customer_label, use_llm=True)
@@ -724,7 +711,6 @@ def main():
                 except Exception as e:
                     st.error(f"Lỗi khi gợi ý phản hồi: {e}")
 
-                # Clean up memory if needed
                 cleanup_memory()
 
 if __name__ == "__main__":
