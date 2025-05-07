@@ -699,7 +699,8 @@ def cleanup_memory():
 
 
 def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
-    df = pd.DataFrame(sop_results, columns=['STT', 'Tiêu chí', 'Trạng thái'])
+    df = pd.DataFrame(sop_results, columns=['STT', 'Tiêu chí', 'Trạng thái', 'Điểm'])
+    df = df.reset_index(drop=True)
 
     st.write("**Bảng đánh giá tuân thủ SOP:**")
     st.dataframe(df, use_container_width=True)  
