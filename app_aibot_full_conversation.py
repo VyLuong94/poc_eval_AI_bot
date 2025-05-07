@@ -122,31 +122,34 @@ def detect_intent(text):
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
     if isinstance(file_path, BytesIO):  
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
-    elif isinstance(file_path, pd.DataFrame): 
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1) 
+    elif isinstance(file_path, pd.DataFrame):
         df = file_path
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)  
-    
-    df.columns = df.columns.str.strip()
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1) 
 
-    print("Column names in DataFrame:", df.columns)
+    df.columns = df.columns.str.strip()
+    
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
+    df = df[required_columns]
+
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
-    
+
     sop_items = []
-    df = df.ffill(axis=0)  
+
+    df = df.ffill(axis=0)
 
     for index, row in df.iterrows():
-        code = str(row['Mã tiêu chí']).strip()
-        title = str(row['Tên tiêu chí đánh giá']).strip()
-        score = row['Điểm'] if not pd.isna(row['Điểm']) else None
-        implementation = str(row['Hướng dẫn thực hiện']).strip()
-        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
+        code = str(row['Mã tiêu chí']).strip() if pd.notna(row['Mã tiêu chí']) else None
+        title = str(row['Tên tiêu chí đánh giá']).strip() if pd.notna(row['Tên tiêu chí đánh giá']) else None
+        score = row['Điểm'] if pd.notna(row['Điểm']) else None
+        implementation = str(row['Hướng dẫn thực hiện']).strip() if pd.notna(row['Hướng dẫn thực hiện']) else None
+        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip() if pd.notna(row['Hướng dẫn đánh giá']) else None
 
         if code and title:
             full_text = f"{code} - {title}"
