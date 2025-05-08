@@ -810,9 +810,15 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
-        # Nếu có vi phạm, thay đổi định dạng để đảm bảo không gặp lỗi
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
+        else:
+            # Đảm bảo mọi phần tử là dict
+            sop_violations = [
+                {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
+                for v in sop_violations
+            ]
+
         
         eval_result["sop_compliance_results"] = sop_results
         eval_result["compliance_rate"] = sop_rate
@@ -836,14 +842,20 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             # Lấy thông tin từ RAG cho từng vi phạm
             rag_explanations = []
             for violation in sop_violations:
-                sop_criterion = violation["Tiêu chí"]
-                relevant_context = retriever.get_relevant_documents(sop_criterion)
-                rag_context = "\n".join([doc.page_content for doc in relevant_context])
-                rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
-                rag_explanations.append({
-                    "Tiêu chí": sop_criterion,
-                    "Giải thích từ RAG": rag_response
-                })
+                try:
+                    sop_criterion = violation["Tiêu chí"]
+                    relevant_context = retriever.get_relevant_documents(sop_criterion)
+                    rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                    rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+                    rag_explanations.append({
+                        "Tiêu chí": sop_criterion,
+                        "Giải thích từ RAG": rag_response
+                    })  
+                except Exception as e:
+                    rag_explanations.append({
+                        "Tiêu chí": str(violation),
+                        "Giải thích từ RAG": f"Lỗi: {e}"
+                    }) 
 
             eval_result["rag_explanations"] = rag_explanations
 
