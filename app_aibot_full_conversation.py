@@ -905,7 +905,6 @@ def main():
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
 
-                method = auto_select_method(transcript, uploaded_excel_file)
 
                 st.subheader("Văn bản thu được:")
                 st.write(transcript)
@@ -939,7 +938,6 @@ def main():
                         method="rag",
                         threshold=0.7
                     )
-
 
                     st.subheader("Phương pháp đánh giá đã chọn:")
                     st.markdown(f"{results['selected_method'].upper()}")
