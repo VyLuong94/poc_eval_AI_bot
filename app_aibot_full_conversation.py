@@ -915,7 +915,7 @@ def main():
 
 
                     st.subheader("Phương pháp đánh giá đã chọn:")
-                    st.markdown(f"{results['selected_method'].upper()}**")
+                    st.markdown(f"{results['selected_method'].upper()}")
 
                     st.subheader("Tỷ lệ tuân thủ tổng thể:")
                     st.markdown(f"- **{results['compliance_rate']:.2f}%**")
