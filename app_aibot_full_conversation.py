@@ -851,7 +851,7 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
         future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
 
         try:
-            qa_llm, combined_text, sop_data = future_chain.result()
+            qa_llm, retriever, sop_data, combined_text = future_chain.result()
         except Exception as e:
             raise RuntimeError(f"Failed to load SOP Excel data: {e}")
 
@@ -862,7 +862,7 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
     detected_sheet_name = detect_sheet_from_text(transcript)
 
-    return qa_llm, combined_text, sop_data, transcript, detected_sheet_name
+    return qa_llm, retriever, sop_data, transcript, detected_sheet_name
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 def main():
