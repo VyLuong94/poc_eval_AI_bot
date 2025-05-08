@@ -557,7 +557,6 @@ def load_excel_rag_data(uploaded_excel_file):
 
         qa_llm = QA_LLM(model_qa, tokenizer_qa, combined_text)
 
-        retriever = db.as_retriever()
 
         return qa_llm, retriever, sop_data, combined_text
 
@@ -767,7 +766,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
             return {"answer": response}
 
         elif method == "rag":
-            qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
+            qa_llm, retriever, _, _ = load_excel_rag_data(sop_excel_file)
 
             if not qa_llm or not retriever:
                 return {"error": "Lỗi tải mô hình RAG hoặc retriever từ dữ liệu SOP."}
@@ -795,7 +794,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     eval_result = {}
 
     try:
-        qa_llm, _, retriever = load_excel_rag_data(sop_excel_file)
+        qa_llm, retriever,_, _ = load_excel_rag_data(sop_excel_file)
         if not qa_llm or not retriever:
             raise RuntimeError("Không thể tải mô hình hoặc dữ liệu RAG.")
 
