@@ -770,7 +770,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, threshold=0.7):
 
 
 
-def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, threshold=0.7):
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file,method=None, threshold=0.7):
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
@@ -825,7 +825,6 @@ def auto_select_method(agent_transcript, sop_excel_file):
         return "rag"
     else:
         return "embedding"
-
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
@@ -895,7 +894,8 @@ def main():
                     results = evaluate_combined_transcript_and_compliance(
                         transcript,
                         uploaded_excel_file,
-                        method=method
+                        method=method,
+                        threshold=0.7
                     )
 
 
