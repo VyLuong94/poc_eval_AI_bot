@@ -549,18 +549,14 @@ def load_excel_rag_data(uploaded_excel_file):
             'Tiêu chí giám sát cuộc gọi NT': df_relative_call.astype(str).agg(' '.join, axis=1).tolist()
         }
 
-        # Load the question-answering model and tokenizer
         model_name_qa = "nguyenvulebinh/vi-mrc-large"
         tokenizer_qa = AutoTokenizer.from_pretrained(model_name_qa)
         model_qa = AutoModelForQuestionAnswering.from_pretrained(model_name_qa)
 
-        # Move the model to the appropriate device (GPU or CPU)
         model_qa.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
-        # Instantiate the QA_LLM with the model and tokenizer
         qa_llm = QA_LLM(model_qa, tokenizer_qa, combined_text)
 
-        # Create retriever for the vector store DB
         retriever = db.as_retriever()
 
         return qa_llm, combined_text, sop_data
@@ -801,7 +797,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     if method not in ["embedding", "rag"]:
         raise ValueError("Chỉ hỗ trợ hai phương pháp: 'embedding' và 'rag'.")
 
-    # Đánh giá nội dung tổng quát từ transcript (nếu cần)
     eval_result = {}
     if method == "rag":
         try:
@@ -828,7 +823,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 agent_transcript, sop_excel_file, threshold=threshold
             )
 
-        # Đảm bảo violations là list[dict] an toàn
+
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
 
