@@ -856,6 +856,7 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
             return None, None, None, None, None  
         try:
             qa_llm, retriever, sop_data, combined_text = result_chain  
+            st.write("DEBUG: unpacked - combined_text (tóm tắt):", combined_text[:500])
         except Exception as e:
             st.error("Lỗi khi unpack kết quả từ load_excel_rag_data:")
             st.exception(e)
@@ -863,6 +864,7 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
         try:
             transcript = future_transcript.result()
+            st.write("DEBUG: transcript (tóm tắt):", transcript[:500])
         except Exception as e:
             st.error("Lỗi khi xử lý audio:")
             st.exception(e)
