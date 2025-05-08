@@ -474,7 +474,6 @@ def load_model():
 @st.cache_resource
 def load_excel_rag_data(uploaded_excel_file):
     try:
-        # Define the QA_LLM class
         class QA_LLM:
             def __init__(self, model_qa, tokenizer_qa, sop_text):
                 self.model_qa = model_qa
@@ -518,14 +517,14 @@ def load_excel_rag_data(uploaded_excel_file):
         missing_sheets = [sheet for sheet in required_sheets if sheet not in available_sheets]
         if missing_sheets:
             print(f"Missing sheets: {missing_sheets}")
-            return None, None, None
+            return None, None, None, None
 
         df_customer_call = pd.read_excel(excel_file, sheet_name='Tiêu chí giám sát cuộc gọi KH')
         df_relative_call = pd.read_excel(excel_file, sheet_name='Tiêu chí giám sát cuộc gọi NT')
 
         if df_customer_call.empty or df_relative_call.empty:
             print("One or both sheets are empty.")
-            return None, None, None
+            return None, None, None, None
 
         customer_docs = [
             Document(page_content=row_text, metadata={"sheet_name": "Tiêu chí giám sát cuộc gọi KH"})
@@ -564,7 +563,7 @@ def load_excel_rag_data(uploaded_excel_file):
 
     except Exception as e:
         print(f"Error loading Excel data: {e}")
-        return None, None, None
+        return None, None, None, None
 
 
 tokenizer, model, device = load_model()
@@ -827,7 +826,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         "sentence_compliance_rate": sentence_rate,
         "violations": sop_violations
     }
-
 
 
 
