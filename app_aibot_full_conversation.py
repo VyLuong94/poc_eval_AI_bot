@@ -491,11 +491,22 @@ def load_excel_rag_data(uploaded_excel_file):
                 start_index = torch.argmax(outputs.start_logits)
                 end_index = torch.argmax(outputs.end_logits)
 
-                if end_index < start_index or (end_index - start_index) > 50:
+                # If confidence too low, reject result
+                start_conf = torch.softmax(outputs.start_logits, dim=-1)[start_index].item()
+                end_conf = torch.softmax(outputs.end_logits, dim=-1)[end_index].item()
+                
+                if end_index < start_index or (end_index - start_index) > 50 or min(start_conf, end_conf) < 0.3:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
 
                 answer_tokens = inputs["input_ids"][0][start_index : end_index + 1]
-                return self.tokenizer_qa.decode(answer_tokens, skip_special_tokens=True).strip()
+                answer = self.tokenizer_qa.decode(answer_tokens, skip_special_tokens=True).strip()
+
+                # Tránh trả về câu trả lời quá ngắn hoặc chỉ là số
+                if len(answer.split()) <= 1:
+                    return "Không tìm thấy thông tin phù hợp trong SOP."
+
+                return answer
+
 
             @property
             def _llm_type(self) -> str:
@@ -794,36 +805,52 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     eval_result = {}
 
     try:
-        qa_llm, retriever,_, _ = load_excel_rag_data(sop_excel_file)
-        if not qa_llm or not retriever:
-            raise RuntimeError("Không thể tải mô hình hoặc dữ liệu RAG.")
-
-        relevant_context = retriever.get_relevant_documents(agent_transcript)
-        rag_context = "\n".join([doc.page_content for doc in relevant_context])
-        rag_response = qa_llm._call(prompt=agent_transcript, context=rag_context)
-        eval_result["rag_answer"] = rag_response
-    except Exception as e:
-        eval_result["rag_answer"] = f"Lỗi khi sử dụng RAG: {e}"
-
-    try:
+        # Đánh giá tuân thủ SOP
         sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
+        # Nếu có vi phạm, thay đổi định dạng để đảm bảo không gặp lỗi
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
+        
+        eval_result["sop_compliance_results"] = sop_results
+        eval_result["compliance_rate"] = sop_rate
+        eval_result["sentence_compliance_rate"] = sentence_rate
+        eval_result["violations"] = sop_violations
 
     except Exception as e:
-        raise RuntimeError(f"Lỗi khi đánh giá tuân thủ SOP: {e}")
+        eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
+        eval_result["violations"] = f"Lỗi: {e}"
 
-    return {
-        "selected_method": method,
-        "evaluation_result": eval_result,
-        "sop_compliance_results": sop_results,
-        "compliance_rate": sop_rate,
-        "sentence_compliance_rate": sentence_rate,
-        "violations": sop_violations
-    }
+    # Nếu phương pháp RAG được yêu cầu, dùng để giải thích các vi phạm SOP
+    if method == "rag":
+        try:
+            # Load dữ liệu từ Excel
+            qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
+            if not qa_llm or not retriever:
+                eval_result["rag_answer"] = "Không thể tải mô hình hoặc dữ liệu RAG."
+                return eval_result
+
+            # Lấy thông tin từ RAG cho từng vi phạm
+            rag_explanations = []
+            for violation in sop_violations:
+                sop_criterion = violation["Tiêu chí"]
+                relevant_context = retriever.get_relevant_documents(sop_criterion)
+                rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+                rag_explanations.append({
+                    "Tiêu chí": sop_criterion,
+                    "Giải thích từ RAG": rag_response
+                })
+
+            eval_result["rag_explanations"] = rag_explanations
+
+        except Exception as e:
+            eval_result["rag_explanations"] = f"Lỗi khi sử dụng RAG: {e}"
+
+    return eval_result
+
 
 
 
@@ -909,7 +936,7 @@ def main():
                     results = evaluate_combined_transcript_and_compliance(
                         transcript,
                         uploaded_excel_file,
-                        method=method,
+                        method="rag",
                         threshold=0.7
                     )
 
@@ -936,9 +963,11 @@ def main():
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                    if results["selected_method"] == "rag":
-                        st.subheader("Kết quả từ mô hình RAG:")
-                        st.write(results["evaluation_result"].get("rag_answer", "Không có dữ liệu."))
+                    if "rag_explanations" in results:
+                        st.subheader("Giải thích từ mô hình RAG:")
+                        for explanation in results["rag_explanations"]:
+                            st.write(f"**Tiêu chí:** {explanation['Tiêu chí']}")
+                            st.write(f"**Giải thích:** {explanation['Giải thích từ RAG']}")
 
                 except Exception as e:
                         st.error(f"Lỗi khi đánh giá transcript: {e}")
