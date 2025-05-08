@@ -759,7 +759,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
             return {"violations": eval_result}
 
         elif method == "qa":
-            qa_llm, combined_text, _ = load_excel_rag_data(sop_excel_file)
+            qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm:
                 raise RuntimeError("Lỗi tải mô hình QA hoặc dữ liệu SOP.")
 
@@ -767,9 +767,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
             return {"answer": response}
 
         elif method == "rag":
-            rag_result = load_excel_rag_data(sop_excel_file)
-            qa_llm = rag_result.get("qa_llm")
-            retriever = rag_result.get("retriever")
+            qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
 
             if not qa_llm or not retriever:
                 return {"error": "Lỗi tải mô hình RAG hoặc retriever từ dữ liệu SOP."}
@@ -778,6 +776,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
             rag_context = "\n".join([doc.page_content for doc in relevant_context])
             response = qa_llm._call(prompt=agent_transcript, context=rag_context)
             return {"answer": response}
+
 
         else:
             raise ValueError(f"Phương pháp '{method}' không hợp lệ. Vui lòng chọn từ 'embedding', 'qa', hoặc 'rag'.")
@@ -844,35 +843,23 @@ def auto_select_method(agent_transcript, sop_excel_file):
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
-        future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
+            future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
 
-        result_chain = future_chain.result()
-        st.write("DEBUG: Kết quả từ load_excel_rag_data (trước khi unpack):", result_chain)
-
-        if len(result_chain) != 4:
-            st.error(f"Expected 4 values, but got {len(result_chain)} values.")
-            return None, None, None, None, None  
-        try:
-            qa_llm, retriever, sop_data, combined_text = result_chain  
-            st.write("DEBUG: unpacked - combined_text (tóm tắt):", combined_text[:500])
-        except Exception as e:
-            st.error("Lỗi khi unpack kết quả từ load_excel_rag_data:")
-            st.exception(e)
-            return None, None, None, None, None  
-
-        try:
+            result_chain = future_chain.result()
             transcript = future_transcript.result()
-            st.write("DEBUG: transcript (tóm tắt):", transcript[:500])
-        except Exception as e:
-            st.error("Lỗi khi xử lý audio:")
-            st.exception(e)
-            return None, None, None, None, None 
 
-    detected_sheet_name = detect_sheet_from_text(transcript)
+            qa_llm, retriever, sop_data, combined_text = result_chain
 
-    return qa_llm, retriever, sop_data, transcript, detected_sheet_name
+            detected_sheet_name = detect_sheet_from_text(transcript)
+
+            return qa_llm, retriever, sop_data, transcript, detected_sheet_name
+    except Exception as e:
+        print(f"Lỗi khi sử dụng RAG: {e}")
+        return None, None, None, None, None
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
