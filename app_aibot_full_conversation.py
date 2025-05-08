@@ -542,6 +542,7 @@ def load_excel_rag_data(uploaded_excel_file):
 
         embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         db = FAISS.from_documents(split_docs, embedding_model)
+        retriever = db.as_retriever()
 
         combined_text = "\n".join([doc.page_content for doc in all_docs])
         sop_data = {
@@ -559,7 +560,7 @@ def load_excel_rag_data(uploaded_excel_file):
 
         retriever = db.as_retriever()
 
-        return qa_llm, combined_text, sop_data
+        return qa_llm, retriever, sop_data, combined_text
 
     except Exception as e:
         print(f"Error loading Excel data: {e}")
@@ -742,35 +743,52 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
 
 
 
-def evaluate_transcript(agent_transcript, sop_excel_file, threshold=0.7):
+def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
     """
-    Hàm đánh giá transcript chỉ sử dụng phương pháp RAG để so khớp nội dung với SOP.
+    Hàm đánh giá transcript dựa trên phương pháp được chọn: embedding, QA, hoặc RAG.
     """
+
+    sheet_name = detect_sheet_from_text(agent_transcript)
+    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
 
     try:
-        sheet_name = detect_sheet_from_text(agent_transcript)
-        sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+        if method == "embedding":
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            eval_result = calculate_sop_compliance_by_sentences(
+                agent_transcript, sop_items, model, threshold=threshold
+            )
+            return {"violations": eval_result}
 
-        qa_llm, _, retriever = load_excel_rag_data(sop_excel_file)
-        if not qa_llm or not retriever:
-            return {"error": "Lỗi tải mô hình RAG hoặc dữ liệu SOP."}
+        elif method == "qa":
+            qa_llm, combined_text, _ = load_excel_rag_data(sop_excel_file)
+            if not qa_llm:
+                raise RuntimeError("Lỗi tải mô hình QA hoặc dữ liệu SOP.")
 
-        relevant_context = retriever.get_relevant_documents(agent_transcript)
-        rag_context = "\n".join([doc.page_content for doc in relevant_context])
-        response = qa_llm._call(prompt=agent_transcript, context=rag_context)
+            response = qa_llm._call(prompt=agent_transcript)
+            return {"answer": response}
 
-        return {
-            "method": "rag",
-            "answer": response,
-            "retrieved_context": rag_context
-        }
+        elif method == "rag":
+            rag_result = load_excel_rag_data(sop_excel_file)
+            qa_llm = rag_result.get("qa_llm")
+            retriever = rag_result.get("retriever")
+
+            if not qa_llm or not retriever:
+                return {"error": "Lỗi tải mô hình RAG hoặc retriever từ dữ liệu SOP."}
+
+            relevant_context = retriever.get_relevant_documents(agent_transcript)
+            rag_context = "\n".join([doc.page_content for doc in relevant_context])
+            response = qa_llm._call(prompt=agent_transcript, context=rag_context)
+            return {"answer": response}
+
+        else:
+            raise ValueError(f"Phương pháp '{method}' không hợp lệ. Vui lòng chọn từ 'embedding', 'qa', hoặc 'rag'.")
 
     except Exception as e:
-        return {"error": f"Lỗi khi đánh giá transcript bằng RAG: {str(e)}"}
+        return {"error": f"Lỗi khi đánh giá transcript: {str(e)}"}
 
 
 
-def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file,method=None, threshold=0.7):
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
@@ -790,7 +808,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     except Exception as e:
         eval_result["rag_answer"] = f"Lỗi khi sử dụng RAG: {e}"
 
-    # Đánh giá tuân thủ SOP
     try:
         sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
             agent_transcript, sop_excel_file, threshold=threshold
@@ -810,6 +827,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         "sentence_compliance_rate": sentence_rate,
         "violations": sop_violations
     }
+
 
 
 
@@ -858,7 +876,7 @@ def main():
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
                 try:
-                    qa_chain, combined_text, sop_data, transcript, detected_sheet_name = process_files(uploaded_excel_file, uploaded_audio_file)
+                    qa_chain, retriever, sop_data, transcript, detected_sheet_name = process_files(uploaded_excel_file, uploaded_audio_file)
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
