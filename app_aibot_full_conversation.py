@@ -509,7 +509,7 @@ def load_excel_rag_data(uploaded_excel_file):
             excel_file = uploaded_excel_file
         else:
             print("No valid file uploaded.")
-            return None, None, None
+            return None, None, None, None
 
         xls = pd.ExcelFile(excel_file)
         available_sheets = xls.sheet_names
