@@ -46,6 +46,7 @@ nest_asyncio.apply()
 
 if sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+    
 
 # --- WHISPER FUNCTION ---
 
@@ -121,15 +122,15 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
-    if isinstance(file_path, BytesIO):  
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1) 
+    if isinstance(file_path, BytesIO):
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
     elif isinstance(file_path, pd.DataFrame):
         df = file_path
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1) 
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
 
     df.columns = df.columns.str.strip()
-    
+
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
@@ -245,13 +246,15 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, sheet_name=0, threshold=0.7):
+def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.7):
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     if isinstance(sop_excel_file, bytes):
         sop_excel_file = io.BytesIO(sop_excel_file)
+
+    sheet_name = detect_sheet_from_text(agent_transcript)
 
     sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
 
@@ -267,11 +270,10 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, sheet_
         return f"Error calculating SOP compliance: {e}"
 
 
-
 def detect_sheet_from_text(agent_text):
     if not isinstance(agent_text, str):
         return 'Tiêu chí giám sát cuộc gọi KH'
-    
+
     agent_text = agent_text.lower()
 
     patterns = [
@@ -606,7 +608,7 @@ def classify_tone(text, chunk_size=None):
 
         max_id = inputs['input_ids'].max().item()
         if max_id >= model.config.vocab_size:
-            return None  
+            return None
 
         with torch.no_grad():
             outputs = model(**inputs)
@@ -740,21 +742,127 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
     df = df.reset_index(drop=True)
 
     st.write("**Bảng đánh giá tuân thủ SOP:**")
-    st.dataframe(df.style.hide(axis="index"), use_container_width=True)  
+    st.dataframe(df.style.hide(axis="index"), use_container_width=True)
 
 
-st.title("Đánh giá Cuộc Gọi - AI Bot")
+
+def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
+    """
+    Hàm đánh giá transcript dựa trên phương pháp được chọn: embedding, QA, hoặc RAG.
+    """
+
+    sheet_name = detect_sheet_from_text(agent_transcript)
+
+    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+
+    try:
+        if method == "embedding":
+
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            eval_result = calculate_sop_compliance_by_sentences(agent_transcript, sop_items, model, threshold=threshold)
+        
+        elif method == "qa":
+            qa_llm, combined_text, _ = load_excel_rag_data(sop_excel_file)
+            if not qa_llm:
+                raise RuntimeError("Lỗi tải mô hình QA hoặc dữ liệu SOP.")
+            
+            response = qa_llm._call(prompt=agent_transcript)
+            eval_result = {"answer": response}
+
+        elif method == "rag":
+            qa_llm, _, retriever = load_excel_rag_data(sop_excel_file)
+            if not qa_llm:
+                return {"error": "Lỗi tải mô hình RAG hoặc dữ liệu SOP."}
+
+            relevant_context = retriever.get_relevant_documents(agent_transcript)
+            rag_context = "\n".join([doc.page_content for doc in relevant_context])
+            response = qa_llm._call(prompt=agent_transcript, context=rag_context)
+            eval_result = {"answer": response}
+
+        else:
+            raise ValueError(f"Phương pháp '{method}' không hợp lệ. Vui lòng chọn từ 'embedding', 'qa', hoặc 'rag'.")
+
+        return eval_result
+
+    except Exception as e:
+        return {"error": f"Lỗi khi đánh giá transcript: {str(e)}"}
+
+
+
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
+    """
+    Đánh giá transcript bằng phương pháp phù hợp (embedding/qa/rag) và tính toán độ tuân thủ SOP.
+    Nếu không truyền method, hệ thống sẽ tự động chọn phương pháp phù hợp.
+    """
+
+    if method is None:
+        method = auto_select_method(agent_transcript, sop_excel_file)
+
+    eval_result = evaluate_transcript(agent_transcript, sop_excel_file, method, threshold=threshold)
+
+    if method == "embedding":
+        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
+            agent_transcript, sop_excel_file, model=model, threshold=threshold
+        )
+    else:
+        sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
+            agent_transcript, sop_excel_file, threshold=threshold
+        )
+
+    return {
+        "selected_method": method,
+        "evaluation_result": eval_result,
+        "sop_compliance_results": sop_results,
+        "compliance_rate": sop_rate,
+        "sentence_compliance_rate": sentence_rate,
+        "violations": sop_violations
+    }
+
+
+def auto_select_method(agent_transcript, sop_excel_file):
+    """
+    Tự động chọn phương pháp phù hợp dựa trên độ dài transcript và khả năng load mô hình QA.
+    Ưu tiên:
+    - RAG nếu transcript rất dài (>300 từ)
+    - QA nếu transcript trung bình (>100 từ) và có thể tải mô hình
+    - Embedding cho đoạn hội thoại ngắn
+    """
+
+    word_count = len(agent_transcript.split())
+
+    if word_count > 300:
+        return "rag"
+    elif word_count > 100:
+        try:
+            qa_llm, _, _ = load_excel_rag_data(sop_excel_file)
+            if qa_llm:
+                return "qa"
+        except Exception as e:
+            print(f"Lỗi khi kiểm tra QA model: {e}")
+    return "embedding"
+
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
         future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
 
-        qa_llm, combined_text, sop_data = future_chain.result()
-        transcript = future_transcript.result()
+        try:
+            qa_llm, combined_text, sop_data = future_chain.result()
+        except Exception as e:
+            raise RuntimeError(f"Failed to load SOP Excel data: {e}")
 
-    return qa_llm, combined_text, sop_data, transcript
+        try:
+            transcript = future_transcript.result()
+        except Exception as e:
+            raise RuntimeError(f"Failed to transcribe audio: {e}")
 
+    detected_sheet_name = detect_sheet_from_text(transcript)
+
+    return qa_llm, combined_text, sop_data, transcript, detected_sheet_name
+
+st.title("Đánh giá Cuộc Gọi - AI Bot")
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh", type=["mp3", "wav"])
@@ -766,15 +874,17 @@ def main():
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
                 try:
-                    qa_chain, combined_text, sop_data, transcript = process_files(uploaded_excel_file, uploaded_audio_file)
+                    qa_chain, combined_text, sop_data, transcript, detected_sheet_name = process_files(uploaded_excel_file, uploaded_audio_file)
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
 
+                method = auto_select_method(transcript, uploaded_excel_file)
+
                 st.subheader("Văn bản thu được:")
                 st.write(transcript)
 
-          
+
                 analysis_result = analyze_call_transcript(transcript)
                 tone_chunks = analysis_result["tone_chunks"]
                 customer_label = classify_tone(transcript, chunk_size=3)
@@ -797,24 +907,36 @@ def main():
 
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
-                    sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
-                        transcript, uploaded_excel_file.getvalue(), model, threshold=0.7
+                    results = evaluate_combined_transcript_and_compliance(
+                        transcript,
+                        uploaded_excel_file,
+                        method=method
                     )
 
-                    st.write(f"Tỷ lệ tuân thủ SOP: **{sop_rate:.2f}%**")
-                    st.write(f"Tỷ lệ tuân thủ câu nói: **{sentence_rate:.2f}%**")
+                    
+                    st.subheader("Phương pháp đánh giá đã chọn:")
+                    st.markdown(f"{results['selected_method'].upper()}**")
 
-                    print_sop_compliance_table(sop_results, sop_rate, sentence_rate)
+                    st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                    st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
-                    if sop_violations:
-                        st.markdown("### Các mục chưa tuân thủ:")
-                        for violation in sop_violations:
-                            st.markdown(f"- **{violation['STT']}.** {violation['Tiêu chí']}")
+                    st.subheader("Tỷ lệ tuân thủ theo từng câu:")
+                    st.markdown(f"- **{results['sentence_compliance_rate']:.2f}%**")
+
+        
+                    st.subheader("Chi tiết từng tiêu chí:")
+                    st.table(results['sop_compliance_results'])
+
+              
+                    if results["violations"]:
+                        st.subheader("Các tiêu chí chưa tuân thủ:")
+                        for violation in results["violations"]:
+                            st.markdown(f"- **{violation['STT']}**. {violation['Tiêu chí']}")
                     else:
-                        st.success("Tất cả các mục trong SOP đã được tuân thủ!")
+                        st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí trong SOP!")
 
                 except Exception as e:
-                    st.error(f"Lỗi khi đánh giá SOP: {e}")
+                    st.error(f"Lỗi khi đánh giá transcript: {e}")
 
                 cleanup_memory()
 
