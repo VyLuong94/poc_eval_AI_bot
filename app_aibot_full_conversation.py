@@ -829,17 +829,14 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
         eval_result["violations"] = f"Lỗi: {e}"
 
-    # Nếu phương pháp RAG được yêu cầu, dùng để giải thích các vi phạm SOP
     if method == "rag":
         try:
-            # Load dữ liệu từ Excel
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
                 eval_result["rag_answer"] = "Không thể tải mô hình hoặc dữ liệu RAG."
                 eval_result["selected_method"] = selected_method
                 return eval_result
 
-            # Lấy thông tin từ RAG cho từng vi phạm
             rag_explanations = []
             for violation in sop_violations:
                 try:
@@ -916,7 +913,6 @@ def main():
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
-
 
                 st.subheader("Văn bản thu được:")
                 st.write(transcript)
