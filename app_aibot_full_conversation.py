@@ -951,7 +951,11 @@ def main():
                         st.subheader("Kết quả từ mô hình RAG:")
                         st.write(results["evaluation_result"].get("rag_answer", "Không có dữ liệu."))
 
-                    st.error(f"Lỗi khi đánh giá transcript: {e}")
+                except Exception as e:
+                        st.error(f"Lỗi khi đánh giá transcript: {e}")
+
+                finally:
+                        cleanup_memory()
 
                 cleanup_memory()
 
