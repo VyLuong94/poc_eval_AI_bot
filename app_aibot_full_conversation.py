@@ -742,6 +742,7 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
 
 
 
+<<<<<<< HEAD
 def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
     """
     Hàm đánh giá transcript dựa trên phương pháp được chọn: embedding, QA, hoặc RAG.
@@ -823,6 +824,62 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 agent_transcript, sop_excel_file, threshold=threshold
             )
 
+=======
+def evaluate_transcript(agent_transcript, sop_excel_file, threshold=0.7):
+    """
+    Hàm đánh giá transcript chỉ sử dụng phương pháp RAG để so khớp nội dung với SOP.
+    """
+
+    try:
+        sheet_name = detect_sheet_from_text(agent_transcript)
+        sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+
+        qa_llm, _, retriever = load_excel_rag_data(sop_excel_file)
+        if not qa_llm or not retriever:
+            return {"error": "Lỗi tải mô hình RAG hoặc dữ liệu SOP."}
+
+        relevant_context = retriever.get_relevant_documents(agent_transcript)
+        rag_context = "\n".join([doc.page_content for doc in relevant_context])
+        response = qa_llm._call(prompt=agent_transcript, context=rag_context)
+
+        return {
+            "method": "rag",
+            "answer": response,
+            "retrieved_context": rag_context
+        }
+
+    except Exception as e:
+        return {"error": f"Lỗi khi đánh giá transcript bằng RAG: {str(e)}"}
+
+
+
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, threshold=0.7):
+    """
+    Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
+    """
+
+    method = "rag"
+    eval_result = {}
+
+    # Xử lý bằng RAG
+    try:
+        qa_llm, _, retriever = load_excel_rag_data(sop_excel_file)
+        if not qa_llm or not retriever:
+            raise RuntimeError("Không thể tải mô hình hoặc dữ liệu RAG.")
+
+        relevant_context = retriever.get_relevant_documents(agent_transcript)
+        rag_context = "\n".join([doc.page_content for doc in relevant_context])
+        rag_response = qa_llm._call(prompt=agent_transcript, context=rag_context)
+        eval_result["rag_answer"] = rag_response
+    except Exception as e:
+        eval_result["rag_answer"] = f"Lỗi khi sử dụng RAG: {e}"
+
+    # Đánh giá tuân thủ SOP
+    try:
+        sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
+            agent_transcript, sop_excel_file, threshold=threshold
+        )
+>>>>>>> c41e06b (Update app code)
 
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
@@ -840,6 +897,10 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     }
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> c41e06b (Update app code)
 def auto_select_method(agent_transcript, sop_excel_file):
     """
     Tự động chọn phương pháp phù hợp dựa trên độ dài transcript.
@@ -925,7 +986,11 @@ def main():
                         method=method
                     )
 
+<<<<<<< HEAD
                     
+=======
+
+>>>>>>> c41e06b (Update app code)
                     st.subheader("Phương pháp đánh giá đã chọn:")
                     st.markdown(f"{results['selected_method'].upper()}**")
 
@@ -935,6 +1000,7 @@ def main():
                     st.subheader("Tỷ lệ tuân thủ theo từng câu:")
                     st.markdown(f"- **{results['sentence_compliance_rate']:.2f}%**")
 
+<<<<<<< HEAD
         
                     st.subheader("Chi tiết từng tiêu chí:")
                     st.table(results['sop_compliance_results'])
@@ -944,6 +1010,18 @@ def main():
                         st.subheader("Các tiêu chí chưa tuân thủ:")
                         for violation in results["violations"]:
                             st.markdown(f"- **{violation.get('STT', '?')}.** {violation.get('Tiêu chí', 'Không rõ')}")
+=======
+
+                    st.subheader("Chi tiết từng tiêu chí:")
+                    st.table(results['sop_compliance_results'])
+
+
+                    if results["violations"]:
+                          st.subheader("Các tiêu chí chưa tuân thủ:")
+                          violations_table = pd.DataFrame(results["violations"])
+                          st.table(violations_table)
+
+>>>>>>> c41e06b (Update app code)
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
