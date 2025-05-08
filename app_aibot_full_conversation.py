@@ -830,6 +830,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
                 eval_result["rag_answer"] = "Không thể tải mô hình hoặc dữ liệu RAG."
+                eval_result["selected_method"] = selected_method
                 return eval_result
 
             # Lấy thông tin từ RAG cho từng vi phạm
@@ -849,9 +850,8 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         except Exception as e:
             eval_result["rag_explanations"] = f"Lỗi khi sử dụng RAG: {e}"
 
+    eval_result["selected_method"] = selected_method
     return eval_result
-
-
 
 
 def auto_select_method(agent_transcript, sop_excel_file):
