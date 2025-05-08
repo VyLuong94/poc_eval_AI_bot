@@ -801,7 +801,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
 
-    method = "rag"
+    selected_method = method or "rag"
     eval_result = {}
 
     try:
