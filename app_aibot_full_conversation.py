@@ -847,21 +847,31 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
         future_transcript = executor.submit(transcribe_audio, uploaded_audio_file)
-        st.write("DEBUG: Kết quả load_excel_rag_data (chưa unpack):", future_chain.result())
 
+        result_chain = future_chain.result()
+        st.write("DEBUG: Kết quả từ load_excel_rag_data (trước khi unpack):", result_chain)
+
+        if len(result_chain) != 4:
+            st.error(f"Expected 4 values, but got {len(result_chain)} values.")
+            return None, None, None, None, None  
         try:
-            qa_llm, retriever, sop_data, combined_text = future_chain.result()
+            qa_llm, retriever, sop_data, combined_text = result_chain  
         except Exception as e:
-            raise RuntimeError(f"Failed to load SOP Excel data: {e}")
+            st.error("Lỗi khi unpack kết quả từ load_excel_rag_data:")
+            st.exception(e)
+            return None, None, None, None, None  
 
         try:
             transcript = future_transcript.result()
         except Exception as e:
-            raise RuntimeError(f"Failed to transcribe audio: {e}")
+            st.error("Lỗi khi xử lý audio:")
+            st.exception(e)
+            return None, None, None, None, None 
 
     detected_sheet_name = detect_sheet_from_text(transcript)
 
     return qa_llm, retriever, sop_data, transcript, detected_sheet_name
+
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 def main():
