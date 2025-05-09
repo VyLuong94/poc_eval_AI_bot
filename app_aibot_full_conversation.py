@@ -776,7 +776,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
-
     selected_method = method or "rag"
     eval_result = {}
 
@@ -785,6 +784,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
+        # Normalize sop_violations thành list of dicts
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
@@ -805,59 +805,59 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     except Exception as e:
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
-        eval_result["violations"] = [{"STT": "?", "Tiêu chí": f"Lỗi: {e}"}]
+        eval_result["violations"] = f"Lỗi: {e}"
 
         try:
             debug_data = {"agent_transcript": agent_transcript, "error": str(e)}
             debug_json = json.dumps(debug_data, ensure_ascii=False, indent=4)
-
             with st.expander("Chi tiết lỗi debug"):
-                st.code(debug_json, language="json")  
-
+                st.code(debug_json, language="json")
         except Exception as file_error:
             eval_result["file_save_error"] = f"Không thể ghi file debug: {file_error}"
             st.error(eval_result["file_save_error"])
 
-
-    if method == "rag":
+    # RAG model
+    if selected_method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
-                eval_result["rag_answer"] = "Không thể tải mô hình hoặc dữ liệu RAG."
+                eval_result["rag_explanations"] = "Không thể tải mô hình hoặc dữ liệu RAG."
                 eval_result["selected_method"] = selected_method
                 return eval_result
 
-
             rag_explanations = []
+
             for violation in sop_violations:
                 try:
-                    sop_criterion = violation.get("Tiêu chí", str(violation))  
-                    if isinstance(sop_criterion, str):
-                        relevant_context = retriever.get_relevant_documents(sop_criterion)
-                        rag_context = "\n".join([doc.page_content for doc in relevant_context])
-                        rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
-                        rag_explanations.append({
-                            "Tiêu chí": sop_criterion,
-                            "Giải thích từ RAG": rag_response
-                        })
+                    if isinstance(violation, dict):
+                        sop_criterion = violation.get("Tiêu chí", str(violation))
                     else:
-                        rag_explanations.append({
-                            "Tiêu chí": str(violation),
-                            "Giải thích từ RAG": "Không thể xử lý vi phạm."
-                        })
+                        sop_criterion = str(violation)
+
+                    relevant_context = retriever.get_relevant_documents(sop_criterion)
+                    rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                    rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+
+                    rag_explanations.append({
+                        "Tiêu chí": sop_criterion,
+                        "Giải thích từ RAG": rag_response
+                    })
+
                 except Exception as e:
                     rag_explanations.append({
                         "Tiêu chí": str(violation),
                         "Giải thích từ RAG": f"Lỗi: {e}"
                     })
 
-            eval_result["rag_explanations"] = rag_explanations
+            if rag_explanations:
+                eval_result["rag_explanations"] = rag_explanations
 
         except Exception as e:
             eval_result["rag_explanations"] = f"Lỗi khi sử dụng RAG: {e}"
 
     eval_result["selected_method"] = selected_method
     return eval_result
+
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
