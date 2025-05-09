@@ -712,7 +712,6 @@ def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
     st.dataframe(df.style.hide(axis="index"), use_container_width=True)
 
 
-
 def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
     """
     Hàm đánh giá transcript dựa trên phương pháp được chọn: embedding, QA, hoặc RAG.
@@ -786,7 +785,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
-        # Xử lý dữ liệu sop_violations
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
@@ -809,17 +807,17 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
         eval_result["violations"] = f"Lỗi: {e}"
 
+
         try:
             debug_data = {"agent_transcript": agent_transcript, "error": str(e)}
             debug_json = json.dumps(debug_data, ensure_ascii=False, indent=4)
 
-        
             with st.expander("Chi tiết lỗi debug"):
                 st.code(debug_json, language="json")  
 
         except Exception as file_error:
             eval_result["file_save_error"] = f"Không thể ghi file debug: {file_error}"
-            st.error(eval_result["file_save_error"])  
+            st.error(eval_result["file_save_error"])
 
 
     if method == "rag":
@@ -830,17 +828,24 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 eval_result["selected_method"] = selected_method
                 return eval_result
 
+
             rag_explanations = []
             for violation in sop_violations:
                 try:
-                    sop_criterion = violation.get("Tiêu chí", str(violation))
-                    relevant_context = retriever.get_relevant_documents(sop_criterion)
-                    rag_context = "\n".join([doc.page_content for doc in relevant_context])
-                    rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
-                    rag_explanations.append({
-                        "Tiêu chí": sop_criterion,
-                        "Giải thích từ RAG": rag_response
-                    })
+                    sop_criterion = violation.get("Tiêu chí", str(violation))  
+                    if isinstance(sop_criterion, str):
+                        relevant_context = retriever.get_relevant_documents(sop_criterion)
+                        rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                        rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+                        rag_explanations.append({
+                            "Tiêu chí": sop_criterion,
+                            "Giải thích từ RAG": rag_response
+                        })
+                    else:
+                        rag_explanations.append({
+                            "Tiêu chí": str(violation),
+                            "Giải thích từ RAG": "Không thể xử lý vi phạm."
+                        })
                 except Exception as e:
                     rag_explanations.append({
                         "Tiêu chí": str(violation),
@@ -939,7 +944,7 @@ def main():
                     st.table(results['sop_compliance_results'])
 
 
-                    if results["violations"]:
+                    if results["violations"] and any(v.get("Tiêu chí") != "?" for v in results["violations"]):
                         st.subheader("Các tiêu chí chưa tuân thủ:")
 
                         st.table(results['violations'])
