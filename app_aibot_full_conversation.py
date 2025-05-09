@@ -957,11 +957,13 @@ def main():
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
+                    st.subheader("Phản hồi gợi ý:")
+                    suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                    st.write(suggestion)
+
 
                 finally:
                         cleanup_memory()
-
-                cleanup_memory()
 
 if __name__ == "__main__":
     main()
