@@ -805,8 +805,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     except Exception as e:
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
-        eval_result["violations"] = f"Lỗi: {e}"
-
+        eval_result["violations"] = [{"STT": "?", "Tiêu chí": f"Lỗi: {e}"}]
 
         try:
             debug_data = {"agent_transcript": agent_transcript, "error": str(e)}
@@ -944,13 +943,15 @@ def main():
                     st.table(results['sop_compliance_results'])
 
 
-                    if results["violations"] and any(v.get("Tiêu chí") != "?" for v in results["violations"]):
+                    if isinstance(results["violations"], list) and any(
+                        isinstance(v, dict) and v.get("Tiêu chí") != "?" for v in results["violations"]
+                    ):
                         st.subheader("Các tiêu chí chưa tuân thủ:")
-
                         st.table(results['violations'])
-
-                    else:
+                    elif isinstance(results["violations"], list):
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                    else:
+                        st.error(results["violations"])  
 
                     if "rag_explanations" in results:
                         st.subheader("Giải thích từ mô hình RAG:")
