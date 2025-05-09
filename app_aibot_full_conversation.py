@@ -708,13 +708,6 @@ def cleanup_memory():
     objgraph.show_growth(limit=10)
 
 
-def print_sop_compliance_table(sop_results, sop_rate, sentence_rate):
-    df = pd.DataFrame(sop_results, columns=['STT', 'Tiêu chí', 'Trạng thái', 'Điểm'])
-    df = df.reset_index(drop=True)
-
-    st.write("**Bảng đánh giá tuân thủ SOP:**")
-    st.dataframe(df.style.hide(axis="index"), use_container_width=True)
-
 
 def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
     """
@@ -930,7 +923,7 @@ def main():
                         transcript,
                         uploaded_excel_file,
                         method="rag",
-                        threshold=0.6
+                        threshold=0.3
                     )
 
                     st.subheader("Tỷ lệ tuân thủ tổng thể:")
@@ -940,17 +933,31 @@ def main():
                     st.markdown(f"- **{results['sentence_compliance_rate']:.2f}%**")
 
                     st.subheader("Chi tiết từng tiêu chí:")
-                    st.table(results['sop_compliance_results'])
+                    df_sop_results = pd.DataFrame(results['sop_compliance_results'])
+                    df_sop_results = df_sop_results[["STT", "Tiêu chí", "Trạng thái", "Điểm"]]
+                    df_sop_results["Điểm"] = df_sop_results["Điểm"]
+                    df_sop_results = df_sop_results.reset_index(drop=True)  
+
+                    st.subheader("Chi tiết từng tiêu chí:")
+                    st.table(df_sop_results)
+
 
                     violations = results.get("violations", [])
                     if violations and isinstance(violations, list):  
                         has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
 
                         if has_violations:
+                            df_violations = pd.DataFrame(violations)
+
+                            df_violations = df_violations[["STT", "Tiêu chí", "Điểm"]]
+                            df_violations["Điểm"] = df_violations["Điểm"]
+                            df_violations = df_violations.reset_index(drop=True)  
+
                             st.subheader("Các tiêu chí chưa tuân thủ:")
-                            st.table(violations)
+                            st.table(df_violations)
                         else:
                             st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+
 
                 finally:
                         cleanup_memory()
