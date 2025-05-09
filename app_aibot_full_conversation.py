@@ -928,7 +928,7 @@ def main():
                         transcript,
                         uploaded_excel_file,
                         method="rag",
-                        threshold=0.7
+                        threshold=0.6
                     )
 
                     st.subheader("Phương pháp đánh giá đã chọn:")
@@ -944,7 +944,7 @@ def main():
                     st.table(results['sop_compliance_results'])
 
                     violations = results.get("violations", [])
-                    if violations and isinstance(violations, list):  # Check if it's a list and contains data
+                    if violations and isinstance(violations, list):  
                         has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
 
                         if has_violations:
