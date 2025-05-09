@@ -945,7 +945,9 @@ def main():
                     st.table(results['sop_compliance_results'])
 
                     violations = results.get("violations", [])
-                    if violations is not None and isinstance(violations, list):
+
+                    violations = results.get("violations", [])
+                    if violations and isinstance(violations, list):
                         has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
 
                         if has_violations:
@@ -954,23 +956,23 @@ def main():
                         else:
                             st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
                     else:
-                        st.error("Dữ liệu vi phạm không hợp lệ.")
+                        st.error("Dữ liệu vi phạm không hợp lệ. Không có thông tin vi phạm.")
 
                     rag_data = results.get("rag_explanations", [])
-                    if isinstance(rag_data, list) and rag_data:
-                        st.subheader("Giải thích từ mô hình RAG:")
-                        for explanation in rag_data:
-                            st.write(f"**Tiêu chí:** {explanation.get('Tiêu chí', 'Không xác định')}")
-                            st.write(f"**Giải thích:** {explanation.get('Giải thích từ RAG', 'Không có thông tin')}")
-                    elif isinstance(rag_data, str):
-                        st.subheader("Giải thích từ mô hình RAG:")
-                        st.error(rag_data)
+                    if rag_data is not None:
+                        if isinstance(rag_data, list) and rag_data:  
+                            st.subheader("Giải thích từ mô hình RAG:")
+                            for explanation in rag_data:
+                                st.write(f"**Tiêu chí:** {explanation.get('Tiêu chí', 'Không xác định')}")
+                                st.write(f"**Giải thích:** {explanation.get('Giải thích từ RAG', 'Không có thông tin')}")
+                        elif isinstance(rag_data, str): 
+                            st.subheader("Giải thích từ mô hình RAG:")
+                            st.error(rag_data)
+                        else:
+                            st.error("Giải thích từ mô hình RAG không hợp lệ.")
                     else:
-                        st.error("Dữ liệu giải thích từ mô hình RAG không hợp lệ.")
+                        st.error("Lỗi khi sử dụng RAG: Không có dữ liệu giải thích.")
 
-
-                except Exception as e:
-                    st.error(f"Lỗi khi đánh giá transcript: {e}")
 
                 finally:
                         cleanup_memory()
