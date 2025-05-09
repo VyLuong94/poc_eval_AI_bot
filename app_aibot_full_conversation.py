@@ -941,13 +941,16 @@ def main():
                     st.subheader("Chi tiết từng tiêu chí:")
                     st.table(results['sop_compliance_results'])
 
-                    if results["violations"] and isinstance(results["violations"], list) and any(v.get("Tiêu chí") != "?" for v in results["violations"] if isinstance(v, dict)):
+                    violations = results.get("violations", [])
+                    has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
+
+                    if has_violations:
                         st.subheader("Các tiêu chí chưa tuân thủ:")
-                        st.table(results['violations'])
+                        st.table(violations)
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                    rag_data = results.get("rag_explanations")
+                    rag_data = results.get("rag_explanations", [])
                     if isinstance(rag_data, list) and rag_data:
                         st.subheader("Giải thích từ mô hình RAG:")
                         for explanation in rag_data:
