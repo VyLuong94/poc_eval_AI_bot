@@ -940,7 +940,7 @@ def main():
 
                     st.table(df_sop_results)
 
-                    df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Chưa tuân thủ"]
+                    df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
 
                     if not df_violations.empty:
                         df_violations = df_violations[["STT", "Tiêu chí", "Điểm"]]
