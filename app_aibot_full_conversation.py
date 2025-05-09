@@ -198,7 +198,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         lower_item = sop_item['full_text'].lower()
 
-        # Custom compliance logic
         if "ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
@@ -324,7 +323,6 @@ def load_ner_pipeline():
 ner_pipeline = load_ner_pipeline()
 
 
-# Main analysis function
 def merge_short_sentences(sentences, short_length=3):
     merged = []
     buffer = ""
@@ -650,7 +648,6 @@ def classify_tone(text, chunk_size=None):
         if not labels:
             return [{"text": text, "tone": "Error: all chunks invalid"}]
 
-        # Majority voting
         final_label = max(set(labels), key=labels.count)
         tone = "Hợp tác" if final_label == 1 else "Không hợp tác"
         return [{"text": text, "tone": tone}]
