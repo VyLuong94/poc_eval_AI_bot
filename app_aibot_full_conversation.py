@@ -938,29 +938,28 @@ def main():
                     st.subheader("Tỷ lệ tuân thủ theo từng câu:")
                     st.markdown(f"- **{results['sentence_compliance_rate']:.2f}%**")
 
-
                     st.subheader("Chi tiết từng tiêu chí:")
                     st.table(results['sop_compliance_results'])
 
-
-                    if isinstance(results["violations"], list) and any(
-                        isinstance(v, dict) and v.get("Tiêu chí") != "?" for v in results["violations"]
-                    ):
+                    if results["violations"] and isinstance(results["violations"], list) and any(v.get("Tiêu chí") != "?" for v in results["violations"] if isinstance(v, dict)):
                         st.subheader("Các tiêu chí chưa tuân thủ:")
                         st.table(results['violations'])
-                    elif isinstance(results["violations"], list):
-                        st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
                     else:
-                        st.error(results["violations"])  
+                        st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                    if "rag_explanations" in results:
+                    rag_data = results.get("rag_explanations")
+                    if isinstance(rag_data, list) and rag_data:
                         st.subheader("Giải thích từ mô hình RAG:")
-                        for explanation in results["rag_explanations"]:
-                            st.write(f"**Tiêu chí:** {explanation['Tiêu chí']}")
-                            st.write(f"**Giải thích:** {explanation['Giải thích từ RAG']}")
+                        for explanation in rag_data:
+                            st.write(f"**Tiêu chí:** {explanation.get('Tiêu chí', 'Không xác định')}")
+                            st.write(f"**Giải thích:** {explanation.get('Giải thích từ RAG', 'Không có thông tin')}")
+                    elif isinstance(rag_data, str):
+                        st.subheader("Giải thích từ mô hình RAG:")
+                        st.error(rag_data)
 
                 except Exception as e:
-                        st.error(f"Lỗi khi đánh giá transcript: {e}")
+                    st.error(f"Lỗi khi đánh giá transcript: {e}")
+
 
                 finally:
                         cleanup_memory()
