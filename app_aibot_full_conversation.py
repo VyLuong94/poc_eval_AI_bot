@@ -778,7 +778,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
-
+    import json
     selected_method = method or "rag"
     eval_result = {}
 
@@ -787,6 +787,11 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
+        # Log đầu vào để kiểm tra lỗi
+        with open("debug_sop_violations.json", "w", encoding="utf-8") as f:
+            json.dump({"sop_violations": str(sop_violations)}, f, ensure_ascii=False, indent=4)
+
+        # Xử lý lỗi kiểu dữ liệu
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
@@ -794,7 +799,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
                 for v in sop_violations
             ]
-
         if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
             raw_text = sop_violations[0].get("Tiêu chí", "")
             if "\n" in raw_text:
@@ -808,9 +812,9 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     except Exception as e:
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
         eval_result["violations"] = f"Lỗi: {e}"
-        sop_violations = []
 
-    if selected_method == "rag":
+    # Xử lý RAG
+    if method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
@@ -821,6 +825,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             rag_explanations = []
             for violation in sop_violations:
                 try:
+                    # An toàn khi truy cập "Tiêu chí"
                     if isinstance(violation, dict):
                         sop_criterion = violation.get("Tiêu chí", "")
                     else:
@@ -837,6 +842,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                         "Tiêu chí": sop_criterion,
                         "Giải thích từ RAG": rag_response
                     })
+
                 except Exception as e:
                     rag_explanations.append({
                         "Tiêu chí": str(violation),
@@ -850,6 +856,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     eval_result["selected_method"] = selected_method
     return eval_result
+
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
@@ -869,7 +876,6 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     except Exception as e:
         print(f"Lỗi khi sử dụng RAG: {e}")
         return None, None, None, None, None
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
