@@ -205,11 +205,16 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+
+        elif "lời nhắn" in lower_item:
+            if any(re.search(r"lời nhắn", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
         elif "đơn vị gọi đến" in lower_item:
             if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
-        elif "lời nhắn" in lower_item:
+        elif "hotline" in lower_item:
             if any("1900558854" in s for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
