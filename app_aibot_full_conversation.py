@@ -99,6 +99,7 @@ def detect_intent(text):
         "Xin gọi lại": [
             r"gọi lại sau", r"đang bận", r"gọi giờ khác", r"đang họp"
         ],
+
         "Không thanh toán": [
             r"không nghe nữa", r"đừng gọi nữa", r"không rảnh", r"cúp máy đây",
             r"phiền quá", r"muốn làm gì làm", r"tôi không cần biết",
@@ -792,8 +793,8 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             sop_violations = [
                 {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
                 for v in sop_violations
-
             ]
+
         if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
             raw_text = sop_violations[0].get("Tiêu chí", "")
             if "\n" in raw_text:
@@ -807,8 +808,9 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     except Exception as e:
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
         eval_result["violations"] = f"Lỗi: {e}"
+        sop_violations = []
 
-    if method == "rag":
+    if selected_method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
@@ -819,10 +821,18 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             rag_explanations = []
             for violation in sop_violations:
                 try:
-                    sop_criterion = violation["Tiêu chí"]
+                    if isinstance(violation, dict):
+                        sop_criterion = violation.get("Tiêu chí", "")
+                    else:
+                        sop_criterion = str(violation)
+
+                    if not sop_criterion:
+                        raise ValueError("Không tìm thấy tiêu chí để đánh giá.")
+
                     relevant_context = retriever.get_relevant_documents(sop_criterion)
                     rag_context = "\n".join([doc.page_content for doc in relevant_context])
                     rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+
                     rag_explanations.append({
                         "Tiêu chí": sop_criterion,
                         "Giải thích từ RAG": rag_response
@@ -927,9 +937,9 @@ def main():
 
 
                     if results["violations"]:
-                          st.subheader("Các tiêu chí chưa tuân thủ:")
+                        st.subheader("Các tiêu chí chưa tuân thủ:")
 
-                          st.table(results['violations'])
+                        st.table(results['violations'])
 
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
