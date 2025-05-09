@@ -773,12 +773,11 @@ def split_violation_text(violation_text):
             violations.append({"STT": "?", "Tiêu chí": clean_line})
 
 
-
 def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
     """
-    import json
+
     selected_method = method or "rag"
     eval_result = {}
 
@@ -787,11 +786,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
-        # Log đầu vào để kiểm tra lỗi
-        with open("debug_sop_violations.json", "w", encoding="utf-8") as f:
-            json.dump({"sop_violations": str(sop_violations)}, f, ensure_ascii=False, indent=4)
-
-        # Xử lý lỗi kiểu dữ liệu
+        # Xử lý dữ liệu sop_violations
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
@@ -799,6 +794,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
                 for v in sop_violations
             ]
+
         if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
             raw_text = sop_violations[0].get("Tiêu chí", "")
             if "\n" in raw_text:
@@ -813,7 +809,19 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
         eval_result["violations"] = f"Lỗi: {e}"
 
-    # Xử lý RAG
+        try:
+            debug_data = {"agent_transcript": agent_transcript, "error": str(e)}
+            debug_json = json.dumps(debug_data, ensure_ascii=False, indent=4)
+
+        
+            with st.expander("Chi tiết lỗi debug"):
+                st.code(debug_json, language="json")  
+
+        except Exception as file_error:
+            eval_result["file_save_error"] = f"Không thể ghi file debug: {file_error}"
+            st.error(eval_result["file_save_error"])  
+
+
     if method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
@@ -825,24 +833,14 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             rag_explanations = []
             for violation in sop_violations:
                 try:
-                    # An toàn khi truy cập "Tiêu chí"
-                    if isinstance(violation, dict):
-                        sop_criterion = violation.get("Tiêu chí", "")
-                    else:
-                        sop_criterion = str(violation)
-
-                    if not sop_criterion:
-                        raise ValueError("Không tìm thấy tiêu chí để đánh giá.")
-
+                    sop_criterion = violation.get("Tiêu chí", str(violation))
                     relevant_context = retriever.get_relevant_documents(sop_criterion)
                     rag_context = "\n".join([doc.page_content for doc in relevant_context])
                     rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
-
                     rag_explanations.append({
                         "Tiêu chí": sop_criterion,
                         "Giải thích từ RAG": rag_response
                     })
-
                 except Exception as e:
                     rag_explanations.append({
                         "Tiêu chí": str(violation),
@@ -856,7 +854,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     eval_result["selected_method"] = selected_method
     return eval_result
-
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
