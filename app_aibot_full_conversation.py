@@ -934,7 +934,7 @@ def main():
 
                     st.subheader("Chi tiết từng tiêu chí:")
                     df_sop_results = pd.DataFrame(results['sop_compliance_results'])
-                    df_sop_results = df_sop_results[["STT", "Tiêu chí", "Trạng thái", "Điểm"]]
+                    df_sop_results = df_sop_results[["Tiêu chí", "Trạng thái", "Điểm"]]
                     df_sop_results = df_sop_results.drop_duplicates(subset=["Tiêu chí"])
                     df_sop_results = df_sop_results.reset_index(drop=True)
 
@@ -943,7 +943,7 @@ def main():
                     df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
 
                     if not df_violations.empty:
-                        df_violations = df_violations[["STT", "Tiêu chí", "Điểm"]]
+                        df_violations = df_violations[["Tiêu chí", "Điểm"]]
                         df_violations["Điểm"] = df_violations["Điểm"].astype(int)
                         df_violations = df_violations.reset_index(drop=True)
 
