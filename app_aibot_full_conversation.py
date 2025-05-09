@@ -165,7 +165,6 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     return sop_items
 
 
-
 def split_into_sentences(text):
     sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
     return [sentence.strip() for sentence in sentences if sentence.strip()]
@@ -246,7 +245,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.7):
+def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.6):
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -945,7 +944,7 @@ def main():
                     st.table(results['sop_compliance_results'])
 
                     violations = results.get("violations", [])
-                    if violations and isinstance(violations, list):
+                    if violations and isinstance(violations, list):  # Check if it's a list and contains data
                         has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
 
                         if has_violations:
@@ -953,18 +952,6 @@ def main():
                             st.table(violations)
                         else:
                             st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
-
-                    rag_data = results.get("rag_explanations", [])
-                    if rag_data and isinstance(rag_data, list):  # Check if it's a valid non-empty list
-                        st.subheader("Giải thích từ mô hình RAG:")
-                        for explanation in rag_data:
-                            st.write(f"**Tiêu chí:** {explanation.get('Tiêu chí', 'Không xác định')}")
-                            st.write(f"**Giải thích:** {explanation.get('Giải thích từ RAG', 'Không có thông tin')}")
-                    elif isinstance(rag_data, str):  
-                        st.subheader("Giải thích từ mô hình RAG:")
-                        st.error(rag_data)
-
-
 
                 finally:
                         cleanup_memory()
