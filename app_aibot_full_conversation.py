@@ -265,6 +265,9 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             model,
             threshold=threshold
         )
+
+        if sop_violations is None:
+            sop_violations = []
         return sop_results, sop_rate, sentence_rate, sop_violations
     except Exception as e:
         return f"Error calculating SOP compliance: {e}"
@@ -942,13 +945,16 @@ def main():
                     st.table(results['sop_compliance_results'])
 
                     violations = results.get("violations", [])
-                    has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
+                    if violations is not None and isinstance(violations, list):
+                        has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
 
-                    if has_violations:
-                        st.subheader("Các tiêu chí chưa tuân thủ:")
-                        st.table(violations)
+                        if has_violations:
+                            st.subheader("Các tiêu chí chưa tuân thủ:")
+                            st.table(violations)
+                        else:
+                            st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
                     else:
-                        st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                        st.error("Dữ liệu vi phạm không hợp lệ.")
 
                     rag_data = results.get("rag_explanations", [])
                     if isinstance(rag_data, list) and rag_data:
@@ -959,10 +965,12 @@ def main():
                     elif isinstance(rag_data, str):
                         st.subheader("Giải thích từ mô hình RAG:")
                         st.error(rag_data)
+                    else:
+                        st.error("Dữ liệu giải thích từ mô hình RAG không hợp lệ.")
+
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá transcript: {e}")
-
 
                 finally:
                         cleanup_memory()
