@@ -198,7 +198,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         lower_item = sop_item['full_text'].lower()
 
-        if "ghi nhận kết quả cuộc gọi" in lower_item:
+        if "ghi nhận kết quả" in lower_item:
             matched = True
             status = "Đã tuân thủ"
         elif "cám ơn và chào khách hàng" in lower_item:
@@ -214,6 +214,15 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+
+        elif "giọng nói" in lower_item:
+            matched = True
+            status = "Đã tuân thủ"
+
+        elif "ngôn ngữ" in lower_item:
+            matched = True
+            status = "Đã tuân thủ"
+
         elif "hotline" in lower_item:
             if any("1900558854" in s for s in agent_sentences):
                 matched = True
