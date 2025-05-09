@@ -923,7 +923,7 @@ def main():
                         transcript,
                         uploaded_excel_file,
                         method="rag",
-                        threshold=0.6
+                        threshold=0.4
                     )
 
                     st.subheader("Tỷ lệ tuân thủ tổng thể:")
