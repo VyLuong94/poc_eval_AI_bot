@@ -177,7 +177,7 @@ def calculate_similarity(sentence, sop_item, model):
     return similarity.item()
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
-def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.7):
+def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.3):
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
@@ -247,7 +247,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 
-def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.6):
+def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -935,28 +935,22 @@ def main():
                     st.subheader("Chi tiết từng tiêu chí:")
                     df_sop_results = pd.DataFrame(results['sop_compliance_results'])
                     df_sop_results = df_sop_results[["STT", "Tiêu chí", "Trạng thái", "Điểm"]]
-                    df_sop_results["Điểm"] = df_sop_results["Điểm"]
-                    df_sop_results = df_sop_results.reset_index(drop=True)  
+                    df_sop_results = df_sop_results.drop_duplicates(subset=["Tiêu chí"])
+                    df_sop_results = df_sop_results.reset_index(drop=True)
 
-                    st.subheader("Chi tiết từng tiêu chí:")
                     st.table(df_sop_results)
 
+                    df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Chưa tuân thủ"]
 
-                    violations = results.get("violations", [])
-                    if violations and isinstance(violations, list):  
-                        has_violations = any(v.get("Tiêu chí") != "?" for v in violations)
+                    if not df_violations.empty:
+                        df_violations = df_violations[["STT", "Tiêu chí", "Điểm"]]
+                        df_violations["Điểm"] = df_violations["Điểm"].astype(int)
+                        df_violations = df_violations.reset_index(drop=True)
 
-                        if has_violations:
-                            df_violations = pd.DataFrame(violations)
-
-                            df_violations = df_violations[["STT", "Tiêu chí", "Điểm"]]
-                            df_violations["Điểm"] = df_violations["Điểm"]
-                            df_violations = df_violations.reset_index(drop=True)  
-
-                            st.subheader("Các tiêu chí chưa tuân thủ:")
-                            st.table(df_violations)
-                        else:
-                            st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                        st.subheader("Các tiêu chí chưa tuân thủ:")
+                        st.table(df_violations)
+                    else:
+                        st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
 
                 finally:
