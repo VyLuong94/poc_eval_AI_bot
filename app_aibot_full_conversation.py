@@ -218,18 +218,20 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 matched = True
                 status = "Đã tuân thủ"
 
+
+        score_int = int(round(sop_item['score']))
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item['full_text'],
             "Trạng thái": status,
-            "Điểm": sop_item['score']
+            "Điểm": score_int
         })
 
         if status == "Chưa tuân thủ":
             sop_violation_items.append({
                 "STT": idx,
                 "Tiêu chí": sop_item['full_text'],
-                "Điểm": sop_item['score']
+                "Điểm": score_int
             })
 
     sop_compliance_rate = (
@@ -238,7 +240,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     )
 
     formatted_violations = "\n".join(
-        [f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items]
+        f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
     )
 
     return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
@@ -930,9 +932,6 @@ def main():
                         method="rag",
                         threshold=0.6
                     )
-
-                    st.subheader("Phương pháp đánh giá đã chọn:")
-                    st.markdown(f"{results['selected_method'].upper()}")
 
                     st.subheader("Tỷ lệ tuân thủ tổng thể:")
                     st.markdown(f"- **{results['compliance_rate']:.2f}%**")
