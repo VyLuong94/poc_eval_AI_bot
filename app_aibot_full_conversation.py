@@ -118,8 +118,8 @@ def detect_intent(text):
     return "Không rõ"
 
 
-# --- SOP COMPLIANCE FUNCTIONS ---
 
+# --- SOP COMPLIANCE FUNCTIONS ---
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
     if isinstance(file_path, BytesIO):
@@ -302,11 +302,11 @@ def load_ner_pipeline():
     hf_api_token = st.secrets["huggingface"]["token"]
 
     try:
-        # Load model and tokenizer with token
+
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=hf_api_token)
         model = AutoModelForTokenClassification.from_pretrained(model_name, use_auth_token=hf_api_token)
 
-        # Create NER pipeline
+
         ner_pipeline = pipeline(
             "ner",
             model=model,
@@ -443,6 +443,7 @@ def analyze_call_transcript(text, max_chunk_length=128, min_sentence_length=5, c
     }
 
 
+
 # --- RESPONSE SUGGESTION FUNCTIONS ---
 
 # Cache models once
@@ -470,7 +471,6 @@ def load_model():
         return None, None, None
 
 
-# Load and process Excel data for RAG
 @st.cache_resource
 def load_excel_rag_data(uploaded_excel_file):
     try:
@@ -491,17 +491,15 @@ def load_excel_rag_data(uploaded_excel_file):
                 start_index = torch.argmax(outputs.start_logits)
                 end_index = torch.argmax(outputs.end_logits)
 
-                # If confidence too low, reject result
                 start_conf = torch.softmax(outputs.start_logits, dim=-1)[start_index].item()
                 end_conf = torch.softmax(outputs.end_logits, dim=-1)[end_index].item()
-                
+
                 if end_index < start_index or (end_index - start_index) > 50 or min(start_conf, end_conf) < 0.3:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
 
                 answer_tokens = inputs["input_ids"][0][start_index : end_index + 1]
                 answer = self.tokenizer_qa.decode(answer_tokens, skip_special_tokens=True).strip()
 
-                # Tránh trả về câu trả lời quá ngắn hoặc chỉ là số
                 if len(answer.split()) <= 1:
                     return "Không tìm thấy thông tin phù hợp trong SOP."
 
@@ -658,41 +656,6 @@ def classify_tone(text, chunk_size=None):
         return [{"text": text, "tone": tone}]
 
 
-def classify_tone_with_llm(text):
-    """
-    Use GPT (or other LLM) to classify:
-    - Is this the customer's sentence?
-    - If yes, what is the cooperation tone?
-    """
-
-    prompt = f"""
-    Bạn là một trợ lý AI cho phân tích cuộc gọi trong thu hồi nợ.
-
-    Câu sau là một phần transcript cuộc gọi:
-
-    "{text}"
-
-    Trả lời bằng JSON với định dạng:
-    {{
-      "is_customer": true hoặc false,
-      "tone": "Hợp tác" | "Không hợp tác" | "Trung lập" | "Không áp dụng"
-    }}
-
-    Chỉ trả về JSON, không thêm giải thích.
-    """
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-        )
-        return json.loads(response.choices[0].message.content.strip())
-    except Exception as e:
-        print(f"Error in tone classification: {e}")
-        return {"is_customer": False, "tone": "Không áp dụng", "error": str(e)}
-
-
 # LLM-based response generator
 def generate_response(text, label):
     prompt = f"""
@@ -796,6 +759,23 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
 
 
 
+def split_violation_text(violation_text):
+    """
+    Tách chuỗi tiêu chí dài thành danh sách dict {"STT": "?", "Tiêu chí": dòng cụ thể}
+    """
+    if not isinstance(violation_text, str):
+        return [{"STT": "?", "Tiêu chí": str(violation_text)}]
+
+    lines = violation_text.strip().split("\n")
+    violations = []
+
+    for line in lines:
+        clean_line = line.strip()
+        if clean_line:
+            violations.append({"STT": "?", "Tiêu chí": clean_line})
+
+
+
 def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
     """
     Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
@@ -805,7 +785,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     eval_result = {}
 
     try:
-        # Đánh giá tuân thủ SOP
         sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
             agent_transcript, sop_excel_file, threshold=threshold
         )
@@ -813,13 +792,16 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
-            # Đảm bảo mọi phần tử là dict
             sop_violations = [
                 {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
                 for v in sop_violations
-            ]
 
-        
+            ]
+        if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
+            raw_text = sop_violations[0].get("Tiêu chí", "")
+            if "\n" in raw_text:
+                sop_violations = split_violation_text(raw_text)
+
         eval_result["sop_compliance_results"] = sop_results
         eval_result["compliance_rate"] = sop_rate
         eval_result["sentence_compliance_rate"] = sentence_rate
@@ -847,12 +829,12 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                     rag_explanations.append({
                         "Tiêu chí": sop_criterion,
                         "Giải thích từ RAG": rag_response
-                    })  
+                    })
                 except Exception as e:
                     rag_explanations.append({
                         "Tiêu chí": str(violation),
                         "Giải thích từ RAG": f"Lỗi: {e}"
-                    }) 
+                    })
 
             eval_result["rag_explanations"] = rag_explanations
 
@@ -861,20 +843,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     eval_result["selected_method"] = selected_method
     return eval_result
-
-
-def auto_select_method(agent_transcript, sop_excel_file):
-    """
-    Tự động chọn phương pháp phù hợp dựa trên độ dài transcript.
-    - RAG nếu transcript rất dài (>300 từ)
-    - Embedding cho tất cả trường hợp còn lại
-    """
-    word_count = len(agent_transcript.split())
-
-    if word_count > 300:
-        return "rag"
-    else:
-        return "embedding"
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
@@ -963,8 +931,8 @@ def main():
 
                     if results["violations"]:
                           st.subheader("Các tiêu chí chưa tuân thủ:")
-                          violations_table = pd.DataFrame(results["violations"])
-                          st.table(violations_table)
+
+                          st.table(results['violations'])
 
                     else:
                         st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
