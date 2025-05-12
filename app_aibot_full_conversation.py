@@ -485,7 +485,7 @@ def analyze_call_transcript(text, max_chunk_length=128, min_sentence_length=5, c
 @st.cache_resource
 def load_model():
     """Load tone classification model and tokenizer."""
-    model_name = "vyluong/tone-classification-model"
+    model_name = "vyluong/poc-v4-tone-classification-model"
     hf_api_token = st.secrets["huggingface"]["token"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -906,8 +906,6 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
                 for file in files:
                     if file.lower().endswith(".wav"):
                         audio_files.append(os.path.join(root, file))
-
-            # streamlit_logger(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
 
             for i, file_path in enumerate(audio_files, start=1):
                 file_name = os.path.basename(file_path)
