@@ -191,7 +191,7 @@ def split_into_sentences(text):
 
 IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
-    "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau"
+    "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị"
 ]
 
 
@@ -502,7 +502,7 @@ def analyze_call_transcript(text, min_sentence_length=5):
 @st.cache_resource
 def load_model():
     """Load tone classification model and tokenizer."""
-    model_name = "vyluong/poc-v4-tone-classification-model"
+    model_name = "vyluong/AI-poc-v4-tone-classification-model"
     hf_api_token = st.secrets["huggingface"]["token"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
