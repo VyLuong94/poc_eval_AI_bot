@@ -51,6 +51,7 @@ if sys.version_info >= (3, 8):
 
 
 
+<<<<<<< HEAD
 def extract_zip_and_get_audio_files(zip_file):
     audio_files = []
 
@@ -67,6 +68,8 @@ def extract_zip_and_get_audio_files(zip_file):
 
 
 
+=======
+>>>>>>> a263227 (Add untracked files)
 # --- WHISPER FUNCTION ---
 
 def transcribe_audio(uploaded_file):
@@ -896,6 +899,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
 
 
+<<<<<<< HEAD
 
 def process_files(uploaded_excel_file, uploaded_zip_audio):
     try:
@@ -906,10 +910,21 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
             qa_llm, retriever, sop_data, combined_text = result_chain
 
         # Extract files from the uploaded ZIP
+=======
+# func process audio by batch
+def process_files(uploaded_excel_file, uploaded_zip_audio):
+    try:
+        qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
+
+        transcripts_by_file = {}
+        detected_sheets_by_file = {}
+
+>>>>>>> a263227 (Add untracked files)
         with tempfile.TemporaryDirectory() as temp_dir:
             with zipfile.ZipFile(uploaded_zip_audio, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
 
+<<<<<<< HEAD
             # Dictionaries to hold the results for each file
             transcripts_by_file = {}
             detected_sheets_by_file = {}
@@ -930,17 +945,52 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
                     detected_sheets_by_file[file] = detected_sheet
 
         # Return the processed data
+=======
+            audio_files = []
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.lower().endswith(".wav"):
+                        audio_files.append(os.path.join(root, file))
+
+            print(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
+
+            # Xử lý từng file một cách tuần tự
+            for i, file_path in enumerate(audio_files, start=1):
+                try:
+                    file_name = os.path.basename(file_path)
+                    print(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
+
+                    transcript = transcribe_audio(file_path)
+                    detected_sheet = detect_sheet_from_text(transcript)
+
+                    transcripts_by_file[file_name] = transcript
+                    detected_sheets_by_file[file_name] = detected_sheet
+
+                except Exception as e:
+                    print(f"Lỗi khi xử lý {file_path}: {e}")
+                    transcripts_by_file[file_name] = ""
+                    detected_sheets_by_file[file_name] = ""
+
+>>>>>>> a263227 (Add untracked files)
         return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
     except Exception as e:
         print(f"Lỗi khi xử lý batch file: {e}")
         return None, None, None, {}, {}
 
+<<<<<<< HEAD
+=======
+# func process each file audio     
+>>>>>>> a263227 (Add untracked files)
 def process_audio_file(file_path):
     try:
         # Transcribe the audio
         transcript = transcribe_audio(file_path)
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> a263227 (Add untracked files)
         # Detect sheet from the transcript
         detected_sheet = detect_sheet_from_text(transcript)
 
