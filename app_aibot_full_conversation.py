@@ -190,10 +190,11 @@ def split_into_sentences(text):
 
 
 IGNORE_KEYWORDS = [
-    "alo", "chào", "em gọi", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết"
+    "alo", "chào", "em gọi", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
+    "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em"
 ]
 
-# Function to check if a sentence contains any of the ignore keywords
+
 def is_greeting_or_intro(sentence):
     sentence_lower = sentence.lower()
     return any(kw in sentence_lower for kw in IGNORE_KEYWORDS)
