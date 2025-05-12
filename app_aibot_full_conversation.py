@@ -881,7 +881,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
 
 # func process audio by batch
-def process_files(uploaded_excel_file, uploaded_zip_audio):
+def process_files(uploaded_excel_file, uploaded_zip_audio, streamlit_logger=print):
     try:
         qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
 
@@ -892,43 +892,36 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
             with zipfile.ZipFile(uploaded_zip_audio, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
 
-            audio_files = [
-                os.path.join(root, file)
-                for root, _, files in os.walk(temp_dir)
-                for file in files
-                if file.lower().endswith(".wav")
-            ]
+            audio_files = []
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    if file.lower().endswith(".wav"):
+                        audio_files.append(os.path.join(root, file))
 
-            print(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
+            streamlit_logger(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
 
             for i, file_path in enumerate(audio_files, start=1):
-                file_name = os.path.basename(file_path)
-                print(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
-                
                 try:
-                    with open(file_path, "rb") as audio_file:
-                        transcript = transcribe_audio(audio_file)
+                    file_name = os.path.basename(file_path)
+                    streamlit_logger(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
+
+                    transcript = transcribe_audio(file_path)
+                    detected_sheet = detect_sheet_from_text(transcript)
 
                     transcripts_by_file[file_name] = transcript
-
-                    detected_sheet = detect_sheet_from_text(transcript)
                     detected_sheets_by_file[file_name] = detected_sheet
 
                 except Exception as e:
-                    print(f"Lỗi khi xử lý {file_name}: {e}")
+                    streamlit_logger(f"Lỗi khi xử lý {file_path}: {e}")
                     transcripts_by_file[file_name] = ""
                     detected_sheets_by_file[file_name] = ""
 
         return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
     except Exception as e:
-        print(f"Lỗi khi xử lý batch file: {e}")
+        streamlit_logger(f"Lỗi khi xử lý batch file: {e}")
         return None, None, None, {}, {}
 
-
-    except Exception as e:
-        print(f"Lỗi khi xử lý batch file: {e}")
-        return None, None, None, {}, {}
 
 # func process each file audio     
 def process_audio_file(file_path):
@@ -956,7 +949,10 @@ def main():
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
                 try:
-                    qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(uploaded_excel_file, uploaded_audio_file)
+                    qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                        uploaded_excel_file, uploaded_audio_file, streamlit_logger=st.info
+                    )
+
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
