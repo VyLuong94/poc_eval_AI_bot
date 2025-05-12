@@ -892,28 +892,30 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
             with zipfile.ZipFile(uploaded_zip_audio, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
 
-            audio_files = []
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    if file.lower().endswith(".wav"):
-                        audio_files.append(os.path.join(root, file))
+            audio_files = [
+                os.path.join(root, file)
+                for root, _, files in os.walk(temp_dir)
+                for file in files
+                if file.lower().endswith(".wav")
+            ]
 
             print(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
 
-            # Xử lý từng file một cách tuần tự
             for i, file_path in enumerate(audio_files, start=1):
+                file_name = os.path.basename(file_path)
+                print(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
+                
                 try:
-                    file_name = os.path.basename(file_path)
-                    print(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
-
-                    transcript = transcribe_audio(file_path)
-                    detected_sheet = detect_sheet_from_text(transcript)
+                    with open(file_path, "rb") as audio_file:
+                        transcript = transcribe_audio(audio_file)
 
                     transcripts_by_file[file_name] = transcript
+
+                    detected_sheet = detect_sheet_from_text(transcript)
                     detected_sheets_by_file[file_name] = detected_sheet
 
                 except Exception as e:
-                    print(f"Lỗi khi xử lý {file_path}: {e}")
+                    print(f"Lỗi khi xử lý {file_name}: {e}")
                     transcripts_by_file[file_name] = ""
                     detected_sheets_by_file[file_name] = ""
 
@@ -923,16 +925,18 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
         print(f"Lỗi khi xử lý batch file: {e}")
         return None, None, None, {}, {}
 
+
+    except Exception as e:
+        print(f"Lỗi khi xử lý batch file: {e}")
+        return None, None, None, {}, {}
+
 # func process each file audio     
 def process_audio_file(file_path):
     try:
-        # Transcribe the audio
         transcript = transcribe_audio(file_path)
 
-        # Detect sheet from the transcript
         detected_sheet = detect_sheet_from_text(transcript)
 
-        # Return the result as a tuple
         file_name = os.path.basename(file_path)
         return file_name, transcript, detected_sheet
     except Exception as e:
