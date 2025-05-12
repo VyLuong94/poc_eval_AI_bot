@@ -169,8 +169,25 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
 
 
 def split_into_sentences(text):
-    sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
-    return [sentence.strip() for sentence in sentences if sentence.strip()]
+    raw_sentences = re.split(r'(?<=[.!?])\s+|\n+', text.strip())
+    merged = []
+    buffer = ""
+    for sentence in raw_sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        if len(sentence.split()) <= 3:
+            buffer += " " + sentence
+        else:
+            if buffer:
+                merged.append((buffer + " " + sentence).strip())
+                buffer = ""
+            else:
+                merged.append(sentence)
+    if buffer:
+        merged.append(buffer.strip())
+    return merged
+
 
 
 # Tính toán sự tương đồng giữa 2 câu sử dụng cosine similarity
@@ -378,28 +395,11 @@ def merge_short_sentences(sentences, short_length=3):
         merged.append(buffer.strip())
     return merged
 
-def analyze_call_transcript(text, max_chunk_length=128, min_sentence_length=5, client=None):
+def analyze_call_transcript(text, min_sentence_length=5):
+
     raw_sentences = re.split(r'(?<=[.!?]) +', text)
     merged_sentences = merge_short_sentences(raw_sentences)
 
-    chunks = []
-    current_chunk = ""
-
-    for sentence in merged_sentences:
-        sentence = sentence.strip()
-        if len(sentence.split()) < min_sentence_length and current_chunk:
-            current_chunk += sentence + " "
-        else:
-            if len(current_chunk.split()) + len(sentence.split()) > max_chunk_length:
-                chunks.append(current_chunk.strip())
-                current_chunk = sentence + " "
-            else:
-                current_chunk += sentence + " "
-
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-
-    print(f"Text split into {len(chunks)} chunks")
 
     entities_dict = {}
     total_sentences = 0
@@ -407,61 +407,66 @@ def analyze_call_transcript(text, max_chunk_length=128, min_sentence_length=5, c
     tone_counter = Counter()
     tone_chunks_result = []
 
-    for chunk in chunks:
-        for sentence in chunk.split("."):
-            sentence = sentence.strip()
-            if sentence:
-                total_sentences += 1
-                try:
-                    tones = classify_tone(sentence)
-                except Exception as e:
-                    print(f"Error classifying tone for sentence: {e}")
-                    tones = [{"text": sentence, "tone": "Error"}]
+    for sentence in merged_sentences:
+        sentence = sentence.strip()
+        if not sentence or len(sentence.split()) < min_sentence_length:
+            continue
 
-                # Phân loại tone của câu
-                if isinstance(tones, list):
-                    for tone in tones:
-                        if isinstance(tone, dict):
-                            tone = tone.get('tone', '')
-                        tone_chunks_result.append({
-                            "text": sentence,
-                            "tone": tone
-                        })
-                        tone_counter[tone] += 1
-                        print(f"Sentence: {sentence} - Tone: {tone}")
-                        if tone == "Hợp tác":
-                            cooperative_sentences += 1
-                elif isinstance(tones, dict):
-                    tone = tones.get('tone', '')
-                    if tone:
-                        tone_chunks_result.append({
-                            "text": sentence,
-                            "tone": tone
-                        })
-                        tone_counter[tone] += 1
-                        print(f"Sentence: {sentence} - Tone: {tone}")
-                        if tone == "Hợp tác":
-                            cooperative_sentences += 1
+        total_sentences += 1
+        try:
+            tones = classify_tone(sentence)
+        except Exception as e:
+            print(f"Error classifying tone for sentence: {e}")
+            tones = [{"text": sentence, "tone": "Error"}]
 
+        if isinstance(tones, list):
+            for tone in tones:
+                tone_value = tone.get('tone', '') if isinstance(tone, dict) else tone
+                tone_chunks_result.append({
+                    "text": sentence,
+                    "tone": tone_value
+                })
+                tone_counter[tone_value] += 1
+                if tone_value == "Hợp tác":
+                    cooperative_sentences += 1
+        elif isinstance(tones, dict):
+            tone_value = tones.get('tone', '')
+            tone_chunks_result.append({
+                "text": sentence,
+                "tone": tone_value
+            })
+            tone_counter[tone_value] += 1
+            if tone_value == "Hợp tác":
+                cooperative_sentences += 1
 
-        ner_results = ner_pipeline(chunk)
-        for entity in ner_results:
-            label = entity['entity_group']
-            word = entity['word']
-            entities_dict.setdefault(label, set()).add(word)
+        # NER theo từng đoạn
+        try:
+            ner_results = ner_pipeline(sentence)
+            for entity in ner_results:
+                label = entity['entity_group']
+                word = entity['word']
+                entities_dict.setdefault(label, set()).add(word)
+        except Exception as e:
+            print(f"NER error: {e}")
 
+    # Phân tích ý định
+    try:
+        intent_result = detect_intent(text)
+    except:
+        intent_result = "Không xác định"
+
+    # Tỷ lệ hợp tác
     collaboration_rate = (cooperative_sentences / total_sentences) * 100 if total_sentences > 0 else 0
-    important_chunks = [chunk for chunk in tone_chunks_result if chunk["tone"] in ["Hợp tác", "Không hợp tác"]]
-    intent_result = detect_intent(text)
 
-    interaction_summary = "=== Đánh giá tương tác theo câu ===\n"
+    # Tóm tắt tương tác
+    interaction_summary = "=== Đánh giá tương tác ===\n"
     if collaboration_rate < 50:
-        interaction_summary += f"Tỷ lệ hợp tác thấp ({collaboration_rate:.2f}%). Những câu không hợp tác cần chú ý:\n"
+        interaction_summary += f"Tỷ lệ hợp tác thấp ({collaboration_rate:.2f}%). Cần chú ý các câu sau:\n"
         for i, item in enumerate(tone_chunks_result):
             if item["tone"] == "Không hợp tác":
                 interaction_summary += f"{i+1}. {item['text']}\n"
     else:
-        interaction_summary += f"Tỷ lệ hợp tác cao ({collaboration_rate:.2f}%). Những câu hợp tác đóng góp tích cực:\n"
+        interaction_summary += f"Tỷ lệ hợp tác cao ({collaboration_rate:.2f}%). Những câu nổi bật:\n"
         for i, item in enumerate(tone_chunks_result):
             if item["tone"] == "Hợp tác":
                 interaction_summary += f"{i+1}. {item['text']}\n"
@@ -473,7 +478,9 @@ def analyze_call_transcript(text, max_chunk_length=128, min_sentence_length=5, c
         "interaction_summary": interaction_summary,
         "tone_chunks": {
             "tone_summary": tone_counter,
-            "important_chunks": important_chunks
+            "important_chunks": [
+                chunk for chunk in tone_chunks_result if chunk["tone"] in ["Hợp tác", "Không hợp tác"]
+            ]
         }
     }
 
@@ -637,8 +644,8 @@ def safe_tokenize(text, tokenizer, max_length=512):
 def classify_tone(text, chunk_size=None):
     """
     Classify tone of text.
-    - If chunk_size is None: classify the whole text.
-    - If chunk_size is an integer: split sentences into chunks and classify each chunk with majority voting.
+    - If chunk_size is None: split into individual sentences and classify each.
+    - If chunk_size is an integer: group sentences into chunks and classify each chunk with majority voting.
     """
     text = clean_text(text)
 
@@ -655,19 +662,30 @@ def classify_tone(text, chunk_size=None):
         return label
 
     if chunk_size is None:
-        # --- Phân loại nguyên đoạn text ---
-        inputs = safe_tokenize(text, tokenizer)
-        if inputs is None:
-            return [{"text": text, "tone": "Error in tokenization"}]
+        sentences = split_into_sentences(text)
+        results = []
 
-        label = predict(inputs)
-        if label is None:
-            return [{"text": text, "tone": "Error: input_ids out of range"}]
+        for sentence in sentences:
+            sentence_clean = clean_text(sentence)
+            if not sentence_clean.strip():
+                continue
 
-        tone = "Hợp tác" if label == 1 else "Không hợp tác"
-        return [{"text": text, "tone": tone}]
+            inputs = safe_tokenize(sentence_clean, tokenizer)
+            if inputs is None:
+                results.append({"text": sentence, "tone": "Error in tokenization"})
+                continue
+
+            label = predict(inputs)
+            if label is None:
+                results.append({"text": sentence, "tone": "Error: input_ids out of range"})
+                continue
+
+            tone = "Hợp tác" if label == 1 else "Không hợp tác"
+            results.append({"text": sentence, "tone": tone})
+        return results
 
     else:
+
         sentences = split_into_sentences(text)
         chunks = [' '.join(sentences[i:i+chunk_size]) for i in range(0, len(sentences), chunk_size)]
 
@@ -688,6 +706,7 @@ def classify_tone(text, chunk_size=None):
         final_label = max(set(labels), key=labels.count)
         tone = "Hợp tác" if final_label == 1 else "Không hợp tác"
         return [{"text": text, "tone": tone}]
+
 
 
 # LLM-based response generator
@@ -973,7 +992,7 @@ def main():
 
                     analysis_result = analyze_call_transcript(transcript)
                     tone_chunks = analysis_result["tone_chunks"]
-                    customer_label = classify_tone(transcript, chunk_size=3)
+                    customer_label = classify_tone(transcript, chunk_size=None)
 
                     st.subheader("Kết quả phân tích:")
                     st.write(f"Cảm xúc của khách hàng: {customer_label}")
