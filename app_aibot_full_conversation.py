@@ -881,7 +881,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
 
 # func process audio by batch
-def process_files(uploaded_excel_file, uploaded_zip_audio, streamlit_logger=print):
+def process_files(uploaded_excel_file, uploaded_zip_audio):
     try:
         qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
 
@@ -898,11 +898,10 @@ def process_files(uploaded_excel_file, uploaded_zip_audio, streamlit_logger=prin
                     if file.lower().endswith(".wav"):
                         audio_files.append(os.path.join(root, file))
 
-            streamlit_logger(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
+            # streamlit_logger(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
 
             for i, file_path in enumerate(audio_files, start=1):
                 file_name = os.path.basename(file_path)
-                streamlit_logger(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
 
                 try:
                     # Bước 1: Transcribe
