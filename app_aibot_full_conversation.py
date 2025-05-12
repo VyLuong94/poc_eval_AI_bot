@@ -189,6 +189,15 @@ def split_into_sentences(text):
     return merged
 
 
+IGNORE_KEYWORDS = [
+    "alo", "chào", "em gọi", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết"
+]
+
+# Function to check if a sentence contains any of the ignore keywords
+def is_greeting_or_intro(sentence):
+    sentence_lower = sentence.lower()
+    return any(kw in sentence_lower for kw in IGNORE_KEYWORDS)
+
 
 # Tính toán sự tương đồng giữa 2 câu sử dụng cosine similarity
 def calculate_similarity(sentence, sop_item, model):
@@ -409,7 +418,7 @@ def analyze_call_transcript(text, min_sentence_length=5):
 
     for sentence in merged_sentences:
         sentence = sentence.strip()
-        if not sentence or len(sentence.split()) < min_sentence_length:
+        if not sentence or len(sentence.split()) < min_sentence_length or is_greeting_or_intro(sentence):
             continue
 
         total_sentences += 1
