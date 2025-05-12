@@ -51,25 +51,6 @@ if sys.version_info >= (3, 8):
 
 
 
-<<<<<<< HEAD
-def extract_zip_and_get_audio_files(zip_file):
-    audio_files = []
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        with zipfile.ZipFile(zip_file, "r") as zip_ref:
-            zip_ref.extractall(temp_dir)
-
-        for root, _, files in os.walk(temp_dir):
-            for file in files:
-                if file.endswith(".wav"):
-                    audio_files.append(os.path.join(root, file))
-
-        return audio_files.copy()
-
-
-
-=======
->>>>>>> a263227 (Add untracked files)
 # --- WHISPER FUNCTION ---
 
 def transcribe_audio(uploaded_file):
@@ -899,18 +880,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
 
 
-<<<<<<< HEAD
-
-def process_files(uploaded_excel_file, uploaded_zip_audio):
-    try:
-        # Load the Excel data in a separate thread
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_chain = executor.submit(load_excel_rag_data, uploaded_excel_file)
-            result_chain = future_chain.result()
-            qa_llm, retriever, sop_data, combined_text = result_chain
-
-        # Extract files from the uploaded ZIP
-=======
 # func process audio by batch
 def process_files(uploaded_excel_file, uploaded_zip_audio):
     try:
@@ -919,33 +888,10 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
         transcripts_by_file = {}
         detected_sheets_by_file = {}
 
->>>>>>> a263227 (Add untracked files)
         with tempfile.TemporaryDirectory() as temp_dir:
             with zipfile.ZipFile(uploaded_zip_audio, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
 
-<<<<<<< HEAD
-            # Dictionaries to hold the results for each file
-            transcripts_by_file = {}
-            detected_sheets_by_file = {}
-
-            # Process each audio file in the extracted directory
-            with concurrent.futures.ThreadPoolExecutor() as audio_executor:
-                futures = []
-                for root, _, files in os.walk(temp_dir):
-                    for file in files:
-                        if file.endswith(".wav"):
-                            file_path = os.path.join(root, file)
-                            futures.append(audio_executor.submit(process_audio_file, file_path))
-
-                # Wait for all transcription tasks to finish
-                for future in concurrent.futures.as_completed(futures):
-                    file, transcript, detected_sheet = future.result()
-                    transcripts_by_file[file] = transcript
-                    detected_sheets_by_file[file] = detected_sheet
-
-        # Return the processed data
-=======
             audio_files = []
             for root, _, files in os.walk(temp_dir):
                 for file in files:
@@ -971,26 +917,18 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
                     transcripts_by_file[file_name] = ""
                     detected_sheets_by_file[file_name] = ""
 
->>>>>>> a263227 (Add untracked files)
         return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
     except Exception as e:
         print(f"Lỗi khi xử lý batch file: {e}")
         return None, None, None, {}, {}
 
-<<<<<<< HEAD
-=======
 # func process each file audio     
->>>>>>> a263227 (Add untracked files)
 def process_audio_file(file_path):
     try:
         # Transcribe the audio
         transcript = transcribe_audio(file_path)
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> a263227 (Add untracked files)
         # Detect sheet from the transcript
         detected_sheet = detect_sheet_from_text(transcript)
 
