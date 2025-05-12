@@ -914,14 +914,14 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
                     detected_sheets_by_file[file_name] = detected_sheet
 
                 except Exception as e:
-                    streamlit_logger(f"Lỗi khi xử lý {file_name}: {e}")
+                    print(f"Lỗi khi xử lý {file_name}: {e}")
                     transcripts_by_file[file_name] = ""
                     detected_sheets_by_file[file_name] = ""
 
         return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
     except Exception as e:
-        streamlit_logger(f"Lỗi khi xử lý batch file: {e}")
+        print(f"Lỗi khi xử lý batch file: {e}")
         return None, None, None, {}, {}
 
 
