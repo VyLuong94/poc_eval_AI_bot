@@ -191,7 +191,8 @@ def split_into_sentences(text):
 
 IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
-    "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị"
+    "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
+    "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi"
 ]
 
 
