@@ -901,18 +901,21 @@ def process_files(uploaded_excel_file, uploaded_zip_audio, streamlit_logger=prin
             streamlit_logger(f"Tổng cộng {len(audio_files)} file âm thanh được tìm thấy.")
 
             for i, file_path in enumerate(audio_files, start=1):
+                file_name = os.path.basename(file_path)
+                streamlit_logger(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
+
                 try:
-                    file_name = os.path.basename(file_path)
-                    streamlit_logger(f"Đang xử lý file {i}/{len(audio_files)}: {file_name}")
-
-                    transcript = transcribe_audio(file_path)
-                    detected_sheet = detect_sheet_from_text(transcript)
-
+                    # Bước 1: Transcribe
+                    with open(file_path, "rb") as audio_file:
+                        transcript = transcribe_audio(audio_file)
                     transcripts_by_file[file_name] = transcript
+
+                    # Bước 2: Detect sheet
+                    detected_sheet = detect_sheet_from_text(transcript)
                     detected_sheets_by_file[file_name] = detected_sheet
 
                 except Exception as e:
-                    streamlit_logger(f"Lỗi khi xử lý {file_path}: {e}")
+                    streamlit_logger(f"Lỗi khi xử lý {file_name}: {e}")
                     transcripts_by_file[file_name] = ""
                     detected_sheets_by_file[file_name] = ""
 
