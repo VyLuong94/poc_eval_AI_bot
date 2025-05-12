@@ -630,7 +630,7 @@ def load_excel_rag_data(uploaded_excel_file):
 tokenizer, model, device = load_model()
 
 
-def safe_tokenize(text, tokenizer, max_length=512):
+def safe_tokenize(text, tokenizer, max_length=256):
     """
     Tokenize text with error handling.
     - Will skip text if error occurs during tokenization (e.g., long text, unexpected characters).
