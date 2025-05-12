@@ -192,7 +192,7 @@ def split_into_sentences(text):
 IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
-    "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau"
+    "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không"
 ]
 
 
@@ -208,7 +208,7 @@ def calculate_similarity(sentence, sop_item, model):
     return similarity.item()
 
 # Tính toán tỷ lệ tuân thủ SOP theo từng câu
-def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.3):
+def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
     agent_sentences = split_into_sentences(transcript)
 
     compliant_sentences = sum(
