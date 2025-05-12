@@ -100,7 +100,7 @@ def detect_intent(text):
             r"tôi đang cố gắng sắp xếp", r"nhờ công ty hỗ trợ", r"cho tôi thêm thời gian"
         ],
         "Xin gọi lại": [
-            r"gọi lại sau", r"đang bận", r"gọi giờ khác", r"đang họp"
+            r"đang bận", r"gọi giờ khác", r"đang họp"
         ],
 
         "Không thanh toán": [
