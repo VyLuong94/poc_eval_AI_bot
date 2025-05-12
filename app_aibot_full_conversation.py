@@ -952,7 +952,7 @@ def main():
             with st.spinner("Đang xử lý..."):
                 try:
                     qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
-                        uploaded_excel_file, uploaded_audio_file, streamlit_logger=st.info
+                        uploaded_excel_file, uploaded_audio_file
                     )
 
                 except Exception as e:
