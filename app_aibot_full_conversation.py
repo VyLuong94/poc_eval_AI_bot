@@ -142,8 +142,11 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
 
     df = df[required_columns]
+    df['is_section_header'] = df['Mã tiêu chí'].notna() & df['Điểm'].notna()
+
     df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
 
+    df.fillna("", inplace=True)
 
     sop_items = []
     current_section = None
