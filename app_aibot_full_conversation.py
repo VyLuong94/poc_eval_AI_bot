@@ -51,8 +51,6 @@ if sys.version_info >= (3, 8):
 
 
 
-# --- WHISPER FUNCTION ---
-
 def transcribe_audio(uploaded_file):
     transcription = openai.audio.transcriptions.create(
         model="gpt-4o-transcribe",
@@ -192,7 +190,8 @@ def split_into_sentences(text):
 IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
-    "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không"
+    "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
+    "mình đóng", "em báo", "nhắc", "xử lý", "thu"
 ]
 
 
@@ -243,10 +242,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             matched = True
             status = "Đã tuân thủ"
 
-        elif re.search(r"\b(chị|anh)\s+\w+", lower_item):
-            matched = True
-            status = "Đã tuân thủ"
-
         elif "cám ơn và chào khách hàng" in lower_item:
             if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
                 matched = True
@@ -256,10 +251,29 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             if any(re.search(r"lời nhắn", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+
         elif "đơn vị gọi đến" in lower_item:
             if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+
+        elif "đơn vị gọi đến" in lower_item:
+            for s in agent_sentences:
+                s_lower = s.lower()
+                if (
+                    ("em bên" in s_lower or "tôi là" in s_lower or "mình bên" in s_lower) and
+                    ("phòng công nợ" in s_lower or "công ty tài chính" in s_lower or re.search(r"\bh\s*d\b|\bhd\b", s_lower)) and
+                    ("chào" in s_lower or "xin phép trao đổi" in s_lower or "xin phép nói chuyện" in s_lower)
+                ):
+                    matched = True
+                    status = "Đã tuân thủ"
+
+        
+        elif "Ghi nhận kết quả" in lower_item:
+            if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
 
         elif "giọng nói" in lower_item:
             matched = True
@@ -358,7 +372,6 @@ def detect_sheet_from_text(agent_text):
 
 # --- ANALYSIS FUNCTION ---
 
-# Use HuggingFace NER to assign speakers
 @st.cache_resource
 def load_ner_pipeline():
     """Load NER pipeline with Hugging Face token."""
@@ -450,7 +463,6 @@ def analyze_call_transcript(text, min_sentence_length=5):
             if tone_value == "Hợp tác":
                 cooperative_sentences += 1
 
-        # NER theo từng đoạn
         try:
             ner_results = ner_pipeline(sentence)
             for entity in ner_results:
@@ -460,7 +472,6 @@ def analyze_call_transcript(text, min_sentence_length=5):
         except Exception as e:
             print(f"NER error: {e}")
 
-    # Phân tích ý định
     try:
         intent_result = detect_intent(text)
     except:
@@ -497,9 +508,6 @@ def analyze_call_transcript(text, min_sentence_length=5):
 
 
 
-# --- RESPONSE SUGGESTION FUNCTIONS ---
-
-# Cache models once
 @st.cache_resource
 def load_model():
     """Load tone classification model and tokenizer."""
@@ -720,7 +728,6 @@ def classify_tone(text, chunk_size=None):
 
 
 
-# LLM-based response generator
 def generate_response(text, label):
     prompt = f"""
     Bạn là nhân viên chăm sóc khách hàng của công ty tài chính, đang làm việc tại bộ phận thu hồi nợ.
@@ -843,7 +850,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
-        # Normalize sop_violations thành list of dicts
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
         else:
@@ -962,7 +968,7 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
         return None, None, None, {}, {}
 
 
-# func process each file audio     
+# func process each file audio
 def process_audio_file(file_path):
     try:
         transcript = transcribe_audio(file_path)
