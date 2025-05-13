@@ -380,7 +380,13 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             sop_violations = []
         return sop_results, sop_rate, sentence_rate, sop_violations
     except Exception as e:
-        return [], 0.0, 0.0, [{"STT": "?", "Tiêu chí": f"Lỗi khi tính SOP: {e}"}]
+      return [], 0.0, 0.0, [{
+          "STT": "?",
+          "Tiêu chí": f"Lỗi khi tính SOP: {e}",
+          "Trạng thái": "",
+          "Điểm": ""
+      }]
+
 
 
 def detect_sheet_from_text(agent_text):
