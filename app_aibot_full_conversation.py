@@ -153,14 +153,18 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         implementation = str(row['Hướng dẫn thực hiện']).strip()
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        if code and pd.notna(score) and implementation == title and evaluation_guide == "":
-            current_section = f"{code} - {title}"  
-            continue  
+        if code and isinstance(score, (int, float)) and not pd.isna(score):
+           continue
+
+        if not code or not title:
+            continue
+
+        if "Cuộc gọi lần đầu" in title or "Cuộc gọi lần sau" in title:
+            continue
 
         if code and title:
             full_text = f"{code} - {title}"
             sop_items.append({
-                'section_header': current_section,
                 'full_text': full_text,
                 'score': score,
                 'implementation': implementation,
