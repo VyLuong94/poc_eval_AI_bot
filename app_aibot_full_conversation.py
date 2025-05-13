@@ -191,7 +191,7 @@ IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
-    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không"
+    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số"
 ]
 
 
@@ -256,7 +256,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             for s in agent_sentences:
                 s_lower = s.lower()
                 if (
-                    ("em bên" in s_lower in s_lower or "mình bên" in s_lower) and
+                    ("em bên" in s_lower in s_lower or "bên" in s_lower) or
                     (
                         "phòng công nợ" in s_lower or
                         "công ty tài chính" in s_lower or
