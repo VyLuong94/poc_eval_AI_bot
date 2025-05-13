@@ -131,10 +131,8 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     else:
         df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
 
-
     df.columns = df.columns.str.strip()
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-
 
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
     missing_columns = [col for col in required_columns if col not in df.columns]
@@ -142,39 +140,22 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
 
     df = df[required_columns]
-    df['is_section_header'] = df['Mã tiêu chí'].notna() & df['Điểm'].notna()
-
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
-
     df.fillna("", inplace=True)
 
     sop_items = []
     current_section = None
 
     for _, row in df.iterrows():
-        code = str(row['Mã tiêu chí']).strip() if pd.notna(row['Mã tiêu chí']) else ""
-        title = str(row['Tên tiêu chí đánh giá']).strip() if pd.notna(row['Tên tiêu chí đánh giá']) else ""
-        score = row['Điểm'] if pd.notna(row['Điểm']) else None
-        implementation = str(row['Hướng dẫn thực hiện']).strip() if pd.notna(row['Hướng dẫn thực hiện']) else ""
-        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip() if pd.notna(row['Hướng dẫn đánh giá']) else ""
+        code = str(row['Mã tiêu chí']).strip()
+        title = str(row['Tên tiêu chí đánh giá']).strip()
+        score = row['Điểm']
+        implementation = str(row['Hướng dẫn thực hiện']).strip()
+        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        if not title and not implementation and not evaluation_guide:
-            if current_section:  
-                sop_items.append({
-                    'full_text': current_section,
-                    'is_section_header': True
-                })
-            continue
-
-        if code and code.isupper():
-            sop_items.append({
-                'section_header': current_section,
-                'full_text': title,
-                'score': score,
-                'implementation': implementation,
-                'evaluation_guide': evaluation_guide
-            })
-            continue
+        if code and pd.notna(score) and implementation == title and evaluation_guide == "":
+            current_section = f"{code} - {title}"  
+            continue  
 
         if code and title:
             full_text = f"{code} - {title}"
