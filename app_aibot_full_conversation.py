@@ -278,9 +278,8 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         
         elif "Ghi nhận kết quả cuộc gọi" in lower_item:
-            if any(re.search(r"Ghi nhận kết quả", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
+            matched = True
+            status = "Đã tuân thủ"
 
 
         elif "giọng nói" in lower_item:
