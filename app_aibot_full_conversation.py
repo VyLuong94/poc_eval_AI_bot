@@ -144,7 +144,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     df = df[required_columns]
     df['is_section_header'] = df['Mã tiêu chí'].notna() & df['Điểm'].notna()
 
-    df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
+    df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
 
     df.fillna("", inplace=True)
 
@@ -158,12 +158,21 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         implementation = str(row['Hướng dẫn thực hiện']).strip() if pd.notna(row['Hướng dẫn thực hiện']) else ""
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip() if pd.notna(row['Hướng dẫn đánh giá']) else ""
 
+        if not title and not implementation and not evaluation_guide:
+            if current_section:  
+                sop_items.append({
+                    'full_text': current_section,
+                    'is_section_header': True
+                })
+            continue
 
-        if not code and not title and implementation:
-            current_section = implementation
+        if code and code.isupper():
             sop_items.append({
-                'full_text': current_section,
-                'is_section_header': True
+                'section_header': current_section,
+                'full_text': title,
+                'score': score,
+                'implementation': implementation,
+                'evaluation_guide': evaluation_guide
             })
             continue
 
