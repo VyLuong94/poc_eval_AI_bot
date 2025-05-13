@@ -191,7 +191,7 @@ IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
-    "mình đóng", "em báo", "nhắc", "xử lý", "thu"
+    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không"
 ]
 
 
@@ -269,8 +269,8 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     status = "Đã tuân thủ"
 
         
-        elif "Ghi nhận kết quả" in lower_item:
-            if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
+        elif "Ghi nhận kết quả cuộc gọi" in lower_item:
+            if any(re.search(r"Ghi nhận kết quả", s.lower()) for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
 
