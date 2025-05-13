@@ -142,7 +142,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
 
     df = df[required_columns]
-    df[['Mã tiêu chí', 'Tên tiêu chí đánh giá']] = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá']].ffill()
+    df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
 
 
     sop_items = []
@@ -202,7 +202,7 @@ IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
-    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số"
+    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số", "giúp nha"
 ]
 
 
