@@ -131,32 +131,38 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     else:
         df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
 
-    df.columns = df.columns.str.strip()
 
+    df.columns = df.columns.str.strip()
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
+
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
-    df = df[required_columns]
-
     missing_columns = [col for col in required_columns if col not in df.columns]
-
     if missing_columns:
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
 
+    df = df[required_columns]
+    df = df.ffill(axis=0) 
+
     sop_items = []
+    current_section = None
 
-    df = df.ffill(axis=0)
-
-    for index, row in df.iterrows():
-        code = str(row['Mã tiêu chí']).strip() if pd.notna(row['Mã tiêu chí']) else None
-        title = str(row['Tên tiêu chí đánh giá']).strip() if pd.notna(row['Tên tiêu chí đánh giá']) else None
+    for _, row in df.iterrows():
+        code = str(row['Mã tiêu chí']).strip() if pd.notna(row['Mã tiêu chí']) else ""
+        title = str(row['Tên tiêu chí đánh giá']).strip() if pd.notna(row['Tên tiêu chí đánh giá']) else ""
         score = row['Điểm'] if pd.notna(row['Điểm']) else None
-        implementation = str(row['Hướng dẫn thực hiện']).strip() if pd.notna(row['Hướng dẫn thực hiện']) else None
-        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip() if pd.notna(row['Hướng dẫn đánh giá']) else None
+        implementation = str(row['Hướng dẫn thực hiện']).strip() if pd.notna(row['Hướng dẫn thực hiện']) else ""
+        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip() if pd.notna(row['Hướng dẫn đánh giá']) else ""
+
+
+        if not code and not title and implementation:
+            current_section = implementation
+            continue
 
         if code and title:
             full_text = f"{code} - {title}"
             sop_items.append({
+                'section_header': current_section,
                 'full_text': full_text,
                 'score': score,
                 'implementation': implementation,
@@ -164,6 +170,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             })
 
     return sop_items
+
 
 
 def split_into_sentences(text):
@@ -221,6 +228,8 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
     sop_compliance_results = []
     sop_violation_items = []
+
+    current_section=None
 
     for idx, sop_item in enumerate(sop_items, 1):
         matched = False
@@ -299,6 +308,15 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 matched = True
                 status = "Đã tuân thủ"
 
+
+        if sop_item.get("section_header") and sop_item["section_header"] != current_section:
+            current_section = sop_item["section_header"]
+            sop_compliance_results.append({
+                "STT": "",
+                "Tiêu chí": f"{current_section.upper()}",
+                "Trạng thái": "",
+                "Điểm": ""
+            })
 
         score_int = int(round(sop_item['score']))
         sop_compliance_results.append({
