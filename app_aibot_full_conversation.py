@@ -1,7 +1,7 @@
 
 import warnings
 warnings.filterwarnings("ignore")
-import nest_asyncio # no running event loop
+import nest_asyncio 
 import asyncio
 nest_asyncio.apply()
 
@@ -75,7 +75,6 @@ def clean_text(text):
 
 
 # --- INTENT DETECTION VIA REGEX ---
-
 
 def detect_intent(text):
     text_lower = text.lower()
@@ -170,7 +169,6 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             })
 
     return sop_items
-
 
 
 def split_into_sentences(text):
