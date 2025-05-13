@@ -326,7 +326,9 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             })
             continue
 
-        score_int = int(round(sop_item['score'])) if sop_item.get('score') is not None else 0
+        score_val = sop_item.get("score")
+        score_int = int(round(score_val)) if pd.notna(score_val) else 0
+        
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item['full_text'],
