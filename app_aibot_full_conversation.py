@@ -252,18 +252,26 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 matched = True
                 status = "Đã tuân thủ"
 
-        elif "đơn vị gọi đến" in lower_item:
-            if any(re.search(r"\bh\s*d\b|\bhd\b", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-        elif "đơn vị gọi đến" in lower_item:
+        elif "đơn vị gọi đến" in lower_item or "giới thiệu tên" in lower_item:
             for s in agent_sentences:
                 s_lower = s.lower()
                 if (
-                    ("em bên" in s_lower or "tôi là" in s_lower or "mình bên" in s_lower) and
-                    ("phòng công nợ" in s_lower or "công ty tài chính" in s_lower or re.search(r"\bh\s*d\b|\bhd\b", s_lower)) and
-                    ("chào" in s_lower or "xin phép trao đổi" in s_lower or "xin phép nói chuyện" in s_lower)
+                    ("em bên" in s_lower in s_lower or "mình bên" in s_lower) and
+                    (
+                        "phòng công nợ" in s_lower or
+                        "công ty tài chính" in s_lower or
+                        re.search(r"\bh\s*d\b|\bhd\b", s_lower) or
+                        "sài gòn" in s_lower or
+                        "hcm" in s_lower or
+                        "chủ trả góp" in s_lower
+                    ) and
+                    (
+                        "chào" in s_lower or
+                        "xin phép trao đổi" in s_lower or
+                        "xin phép nói chuyện" in s_lower or
+                        "alo" in s_lower or
+                        "cho em hỏi" in s_lower
+                    )
                 ):
                     matched = True
                     status = "Đã tuân thủ"
