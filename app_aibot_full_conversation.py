@@ -141,7 +141,8 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
 
     df = df[required_columns]
-    df = df.ffill(axis=0) 
+    df[['Mã tiêu chí', 'Tên tiêu chí đánh giá']] = df[['Mã tiêu chí', 'Tên tiêu chí đánh giá']].ffill()
+
 
     sop_items = []
     current_section = None
@@ -156,6 +157,10 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
 
         if not code and not title and implementation:
             current_section = implementation
+            sop_items.append({
+                'full_text': current_section,
+                'is_section_header': True
+            })
             continue
 
         if code and title:
@@ -227,7 +232,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     sop_compliance_results = []
     sop_violation_items = []
 
-    current_section=None
 
     for idx, sop_item in enumerate(sop_items, 1):
         matched = False
@@ -307,12 +311,11 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 status = "Đã tuân thủ"
 
 
-        if sop_item.get("section_header") and sop_item["section_header"] != current_section:
-            current_section = sop_item["section_header"]
+        if sop_item.get("is_section_header"):
             sop_compliance_results.append({
                 "STT": "",
                 "Tiêu chí": f"{current_section.upper()}",
-                "Trạng thái": "",
+                "Trạng thái": "Đã tuân thủ",
                 "Điểm": ""
             })
 
