@@ -234,6 +234,8 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     sop_violation_items = []
 
 
+    current_section = None
+
     for idx, sop_item in enumerate(sop_items, 1):
         matched = False
         status = "Chưa tuân thủ"
@@ -315,12 +317,13 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
         if sop_item.get("is_section_header"):
             sop_compliance_results.append({
                 "STT": "",
-                "Tiêu chí": f"{current_section.upper()}",
+                "Tiêu chí": sop_item["full_text"].upper(),
                 "Trạng thái": "Đã tuân thủ",
                 "Điểm": ""
             })
+            continue
 
-        score_int = int(round(sop_item['score']))
+        score_int = int(round(sop_item['score'])) if sop_item.get('score') is not None else ""
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item['full_text'],
