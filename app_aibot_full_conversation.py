@@ -327,7 +327,10 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             continue
 
         score_val = sop_item.get("score")
-        score_int = int(round(score_val)) if pd.notna(score_val) else 0
+        if pd.notna(score_val) and score_val != "":
+            score_int = int(round(score_val))  
+        else:
+            score_int = 0 
         
         sop_compliance_results.append({
             "STT": idx,
