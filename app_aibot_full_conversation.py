@@ -403,8 +403,6 @@ def detect_sheet_from_text(agent_text):
 
 
 
-# --- ANALYSIS FUNCTION ---
-
 @st.cache_resource
 def load_ner_pipeline():
     """Load NER pipeline with Hugging Face token."""
@@ -808,7 +806,6 @@ def cleanup_memory():
     if not tracemalloc.is_tracing():
         tracemalloc.start()
     objgraph.show_growth(limit=10)
-
 
 
 def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", use_rag=False, threshold=0.7):
