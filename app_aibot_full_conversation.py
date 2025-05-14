@@ -187,7 +187,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
                 "score": score,
                 "implementation": "",
                 "evaluation_guide": "",
-                "is_section_header": True
+                "is_section_header": False
             })
         else:
             continue
