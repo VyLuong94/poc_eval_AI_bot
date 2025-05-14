@@ -1040,7 +1040,8 @@ st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
-    uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (ZIP chứa các tệp .wav)", type=["zip"])
+    # uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (ZIP chứa các tệp .wav)", type=["zip"])
+    uploaded_audio_file = st.file_uploader("Tải file ghi âm cuộc gọi (.mp3 hoặc .wav)", type=["wav"])
 
     if uploaded_excel_file and uploaded_audio_file:
         st.success("Tải tệp thành công!")
