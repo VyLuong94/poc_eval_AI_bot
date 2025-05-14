@@ -151,18 +151,16 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         if not code or code.lower() in ['nan', '']:
             continue  
 
-        if code.replace('.', '').isdigit() and len(code.split('.')) == 2:
-                    current_section = title  
-                    sop_items.append({
-                        "section_header": current_section,
-                        "full_text": f"{title}",
-                        "score": None,
-                        "implementation": "",
-                        "evaluation_guide": "",
-                        "is_section_header": True
-                    })
-                    continue
-
+        if code.isupper() and code:
+            sop_items.append({
+                "section_header": None,
+                "full_text": f"{title}",
+                "score": None, 
+                "implementation": "", 
+                "evaluation_guide": "",
+                "is_section_header": True
+            })
+            continue
 
         if code.replace('.', '').isdigit() and len(code.split('.')) == 3:
             merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
@@ -1086,7 +1084,7 @@ def main():
                             transcript,
                             uploaded_excel_file,
                             method="rag",
-                            threshold=0.3
+                            threshold=0.4
                         )
 
                         st.subheader("Tỷ lệ tuân thủ tổng thể:")
