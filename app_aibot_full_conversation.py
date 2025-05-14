@@ -151,29 +151,29 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         if not code or code.lower() in ['nan', '']:
             continue  
 
+        if code.replace('.', '').isdigit() and len(code.split('.')) == 2:
+                    current_section = title  
+                    sop_items.append({
+                        "section_header": current_section,
+                        "full_text": f"{title}",
+                        "score": None,
+                        "implementation": "",
+                        "evaluation_guide": "",
+                        "is_section_header": True
+                    })
+                    continue
 
-        if code.isupper() and code:
+
+        if code.replace('.', '').isdigit() and len(code.split('.')) == 3:
+            merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
             sop_items.append({
-                "section_header": None,
+                "section_header": current_section,
                 "full_text": f"{title}",
-                "score": None, 
-                "implementation": "", 
-                "evaluation_guide": "",
-                "is_section_header": True
+                "score": score,
+                "implementation": merged_text,
+                "evaluation_guide": evaluation_guide,
+                "is_section_header": False
             })
-            continue
-
-
-        merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
-
-        sop_items.append({
-            "section_header": current_section, 
-            "full_text": f"{title}",
-            "score": score,
-            "implementation": merged_text,
-            "evaluation_guide": evaluation_guide,
-            "is_section_header": False
-        })
 
 
     return sop_items
