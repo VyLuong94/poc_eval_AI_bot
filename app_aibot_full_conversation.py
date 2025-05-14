@@ -1,7 +1,7 @@
 
 import warnings
 warnings.filterwarnings("ignore")
-import nest_asyncio 
+import nest_asyncio
 import asyncio
 nest_asyncio.apply()
 
@@ -74,8 +74,6 @@ def clean_text(text):
 
     return text
 
-
-# --- INTENT DETECTION VIA REGEX ---
 
 def detect_intent(text):
     text_lower = text.lower()
@@ -153,23 +151,23 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         implementation = str(row['Hướng dẫn thực hiện']).strip()
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        if code and isinstance(score, (int, float)) and not pd.isna(score):
-           continue
+        if (
+            not code and not title
+        ):
+            continue  
 
-        if not code or not title:
-            continue
-
-        if "Cuộc gọi lần đầu" in title or "Cuộc gọi lần sau" in title:
-            continue
-
-        if code and title:
-            full_text = f"{code} - {title}"
+        if code.isupper() and code:
+            merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
             sop_items.append({
-                'full_text': full_text,
-                'score': score,
-                'implementation': implementation,
-                'evaluation_guide': evaluation_guide
+                "section_header": None,
+                "full_text": f"{code}",
+                "score": score, 
+                "implementation": merged_text, 
+                "evaluation_guide": "",
+                "is_section_header": True
             })
+            continue
+
 
     return sop_items
 
@@ -208,13 +206,12 @@ def is_greeting_or_intro(sentence):
     return any(kw in sentence_lower for kw in IGNORE_KEYWORDS)
 
 
-# Tính toán sự tương đồng giữa 2 câu sử dụng cosine similarity
 def calculate_similarity(sentence, sop_item, model):
     embeddings = model.encode([sentence, sop_item], convert_to_tensor=True)
     similarity = util.cos_sim(embeddings[0], embeddings[1])
     return similarity.item()
 
-# Tính toán tỷ lệ tuân thủ SOP theo từng câu
+
 def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
     agent_sentences = split_into_sentences(transcript)
 
@@ -230,8 +227,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     sop_compliance_results = []
     sop_violation_items = []
 
-
-    current_section = None
 
     for idx, sop_item in enumerate(sop_items, 1):
         matched = False
@@ -287,7 +282,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     matched = True
                     status = "Đã tuân thủ"
 
-        
+
         elif "Ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
@@ -322,10 +317,10 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         score_val = sop_item.get("score")
         if pd.notna(score_val) and score_val != "":
-            score_int = int(round(score_val))  
+            score_int = int(round(score_val))
         else:
-            score_int = 0 
-        
+            score_int = 0
+
         sop_compliance_results.append({
             "STT": idx,
             "Tiêu chí": sop_item['full_text'],
@@ -513,10 +508,9 @@ def analyze_call_transcript(text, min_sentence_length=5):
     except:
         intent_result = "Không xác định"
 
-    # Tỷ lệ hợp tác
     collaboration_rate = (cooperative_sentences / total_sentences) * 100 if total_sentences > 0 else 0
 
-    # Tóm tắt tương tác
+
     interaction_summary = "=== Đánh giá tương tác ===\n"
     if collaboration_rate < 50:
         interaction_summary += f"Tỷ lệ hợp tác thấp ({collaboration_rate:.2f}%). Cần chú ý các câu sau:\n"
@@ -541,7 +535,6 @@ def analyze_call_transcript(text, min_sentence_length=5):
             ]
         }
     }
-
 
 
 @st.cache_resource
@@ -763,7 +756,6 @@ def classify_tone(text, chunk_size=None):
         return [{"text": text, "tone": tone}]
 
 
-
 def generate_response(text, label):
     prompt = f"""
     Bạn là nhân viên chăm sóc khách hàng của công ty tài chính, đang làm việc tại bộ phận thu hồi nợ.
@@ -916,7 +908,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
             eval_result["file_save_error"] = f"Không thể ghi file debug: {file_error}"
             st.error(eval_result["file_save_error"])
 
-    # RAG model
+
     if selected_method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
@@ -982,12 +974,12 @@ def process_files(uploaded_excel_file, uploaded_zip_audio):
                 file_name = os.path.basename(file_path)
 
                 try:
-                    # Bước 1: Transcribe
+
                     with open(file_path, "rb") as audio_file:
                         transcript = transcribe_audio(audio_file)
                     transcripts_by_file[file_name] = transcript
 
-                    # Bước 2: Detect sheet
+
                     detected_sheet = detect_sheet_from_text(transcript)
                     detected_sheets_by_file[file_name] = detected_sheet
 
