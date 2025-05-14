@@ -1091,6 +1091,9 @@ def main():
                         df_sop_results = df_sop_results.drop_duplicates(subset=["Tiêu chí"])
                         df_sop_results = df_sop_results.reset_index(drop=True)
 
+                        df_sop_results["Điểm"] = df_sop_results["Điểm"].replace('', pd.NA)
+                        df_sop_results["Điểm"] = df_sop_results["Điểm"].fillna(0).astype(int)
+
                         st.table(df_sop_results)
 
                         df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
