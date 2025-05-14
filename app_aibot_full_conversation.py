@@ -119,6 +119,7 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
+
     if isinstance(file_path, BytesIO):
         df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
     elif isinstance(file_path, pd.DataFrame):
@@ -130,69 +131,58 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
-    missing_columns = [col for col in required_columns if col not in df.columns]
-    if missing_columns:
-        raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
+    if not all(col in df.columns for col in required_columns):
+        raise ValueError("Thiếu cột dữ liệu cần thiết.")
 
     df = df[required_columns]
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
     df.fillna("", inplace=True)
 
-    sop_items = []
-    current_section = None
-
+    grouped = {}
     for _, row in df.iterrows():
         code = str(row['Mã tiêu chí']).strip()
-        title = str(row['Tên tiêu chí đánh giá']).strip()
-        score = row['Điểm']
-        implementation = str(row['Hướng dẫn thực hiện']).strip()
-        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
-
-        if not code or code.lower() in ['nan', '']:
-            continue  
-
-        if code.isupper() and code:
-            sop_items.append({
-                "section_header": None,
-                "full_text": f"{title}",
-                "score": None, 
-                "implementation": "", 
-                "evaluation_guide": "",
-                "is_section_header": True
-            })
+        if not code or code.lower() == 'nan':
             continue
 
-        if code.count('.') == 2: 
-            parts = code.strip().split('.')
-            if all(p.isdigit() for p in parts) and len(parts) == 3:
-                if pd.isna(score):
-                    score = 0  
-                merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
-                sop_items.append({
-                    "section_header": current_section, 
-                    "full_text": title,
-                    "score": score,  
-                    "implementation": merged_text,
-                    "evaluation_guide": evaluation_guide,
-                    "is_section_header": False
-                })
+        if code not in grouped:
+            grouped[code] = {
+                "Tên tiêu chí đánh giá": [],
+                "Hướng dẫn thực hiện": [],
+                "Hướng dẫn đánh giá": [],
+                "Điểm": 0
+            }
+
+        grouped[code]["Tên tiêu chí đánh giá"].append(str(row['Tên tiêu chí đánh giá']).strip())
+        grouped[code]["Hướng dẫn thực hiện"].append(str(row['Hướng dẫn thực hiện']).strip())
+        grouped[code]["Hướng dẫn đánh giá"].append(str(row['Hướng dẫn đánh giá']).strip())
+
+        try:
+            score = float(row['Điểm'])
+        except:
+            score = 0
+        grouped[code]["Điểm"] = max(grouped[code]["Điểm"], score)
 
 
-        elif code.count('.') == 1: 
-            if pd.isna(score):
-                score = 0 
-            sop_items.append({
-                "section_header": None,
-                "full_text": title,
-                "score": score,
-                "implementation": "",
-                "evaluation_guide": "",
-                "is_section_header": False
-            })
-        else:
-            continue
+    sop_items = []
+    for code, content in grouped.items():
+        title = " | ".join(filter(None, content["Tên tiêu chí đánh giá"]))
+        implementation = " | ".join(filter(None, content["Hướng dẫn thực hiện"]))
+        evaluation_guide = " | ".join(filter(None, content["Hướng dẫn đánh giá"]))
+        score = content["Điểm"]
+
+        is_section_header = code.isupper()
+
+        sop_items.append({
+            "section_header": None,
+            "full_text": title if is_section_header else f"{title} - {implementation} - {evaluation_guide}",
+            "score": None if is_section_header else score,
+            "implementation": "" if is_section_header else implementation,
+            "evaluation_guide": "" if is_section_header else evaluation_guide,
+            "is_section_header": is_section_header
+        })
 
     return sop_items
+
 
 
 def split_into_sentences(text):
