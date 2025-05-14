@@ -315,9 +315,10 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
         score_val = sop_item.get("score")
-        if pd.notna(score_val) and score_val != "":
-            score_int = int(round(score_val))
-        else:
+
+        try:
+            score_int = int(round(float(score_val)))
+        except (ValueError, TypeError):
             score_int = 0
 
         sop_compliance_results.append({
