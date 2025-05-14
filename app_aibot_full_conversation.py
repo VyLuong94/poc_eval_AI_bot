@@ -310,7 +310,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             sop_compliance_results.append({
                 "STT": "",
                 "Tiêu chí": sop_item["full_text"].upper(),
-                "Trạng thái": "Đã tuân thủ",
+                "Trạng thái": "",
                 "Điểm": ""
             })
             continue
