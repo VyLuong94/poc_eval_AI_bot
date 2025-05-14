@@ -313,12 +313,17 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 status = "Đã tuân thủ"
 
 
-
         score_val = sop_item.get("score")
 
-        try:
-            score_int = int(round(float(score_val)))
-        except (ValueError, TypeError):
+        if isinstance(score_val,(int,float)):
+            score_int = int(round(score_val))
+        elif isinstance(score_val,str) and score_val.strip() !="":
+            try:
+                score_int = int((round(float(score_val.strip()))))
+            except ValueError:
+                score_int = 0
+
+        else:
             score_int = 0
 
         sop_compliance_results.append({
