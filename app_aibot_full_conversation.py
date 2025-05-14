@@ -315,15 +315,18 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         score_val = sop_item.get("score")
 
-        if isinstance(score_val,(int,float)):
-            score_int = int(round(score_val))
-        elif isinstance(score_val,str) and score_val.strip() !="":
-            try:
-                score_int = int((round(float(score_val.strip()))))
-            except ValueError:
+        try:
+            if isinstance(score_val, (int, float)):
+                score_int = int(round(score_val))
+            elif isinstance(score_val, str):
+                cleaned_val = score_val.strip().lower()
+                if cleaned_val in ["", "nan", "none", "null"]:
+                    score_int = 0
+                else:
+                    score_int = int(round(float(cleaned_val)))
+            else:
                 score_int = 0
-
-        else:
+        except (ValueError, TypeError):
             score_int = 0
 
         sop_compliance_results.append({
