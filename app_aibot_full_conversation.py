@@ -234,6 +234,16 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
         lower_item = sop_item['full_text'].lower()
 
+
+        if sop_item.get("is_section_header"):
+            sop_compliance_results.append({
+                "STT": "",
+                "Tiêu chí": sop_item["full_text"].upper(),
+                "Trạng thái": "",
+                "Điểm": ""
+            })
+            continue
+
         if "xác định khách hàng" in lower_item:
             if any(re.search(r"\b(chị|anh)\s+\w+", s.lower()) for s in agent_sentences):
                 matched = True
@@ -306,14 +316,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 status = "Đã tuân thủ"
 
 
-        if sop_item.get("is_section_header"):
-            sop_compliance_results.append({
-                "STT": "",
-                "Tiêu chí": sop_item["full_text"].upper(),
-                "Trạng thái": "",
-                "Điểm": ""
-            })
-            continue
 
         score_val = sop_item.get("score")
         if pd.notna(score_val) and score_val != "":
@@ -335,9 +337,12 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 "Điểm": score_int
             })
 
+    valid_criteria = [item for item in sop_compliance_results if item["STT"] != ""]
+    complied_criteria = [item for item in valid_criteria if item["Trạng thái"] == "Đã tuân thủ"]
+
     sop_compliance_rate = (
-        sum(1 for item in sop_compliance_results if item["Trạng thái"] == "Đã tuân thủ") / len(sop_compliance_results) * 100
-        if sop_compliance_results else 0
+        len(complied_criteria) / len(valid_criteria) * 100
+        if valid_criteria else 0
     )
 
     formatted_violations = "\n".join(
