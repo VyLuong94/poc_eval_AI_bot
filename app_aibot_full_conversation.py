@@ -797,23 +797,27 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 status = "Đã tuân thủ"
 
 
-        score_val = sop_item.get("score", 0)  
+        score_val = sop_item.get("score", None)  
 
-        try:
+        print(f"Score for SOP Item {idx}: {score_val}")
 
-            if isinstance(score_val, (int, float)):
-                score_int = int(round(score_val)) 
-            elif isinstance(score_val, str):
-                cleaned_val = score_val.strip().lower()
-                if cleaned_val in ["", "nan", "none", "null"]:
-                    score_int = 0  
+        if score_val is None or score_val == "":
+            score_int = 0 
+        else:
+            try:
+                if isinstance(score_val, (int, float)):
+                    score_int = int(round(score_val))
+                elif isinstance(score_val, str):
+                    cleaned_val = score_val.strip().lower()
+                    if cleaned_val in ["", "nan", "none", "null"]:
+                        score_int = 0  
+                    else:
+                        score_int = int(round(float(cleaned_val)))  
                 else:
-                    score_int = int(round(float(cleaned_val)))  
-            else:
-                score_int = 0  
-        except (ValueError, TypeError) as e:
-            score_int = 0  
-            print(f"Error converting score value: {e}")  
+                    score_int = 0 
+            except (ValueError, TypeError) as e:
+                score_int = 0 
+                print(f"Error converting score value for SOP Item {idx}: {e}")
 
 
         sop_compliance_results.append({
