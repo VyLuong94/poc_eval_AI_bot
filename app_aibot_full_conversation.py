@@ -979,9 +979,20 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     return eval_result
 
 
-def process_files(uploaded_excel_file, uploaded_audio_file):
-    import pandas as pd
+def process_audio_file(file_path):
+    try:
+        transcript = transcribe_audio(file_path)
 
+        detected_sheet = detect_sheet_from_text(transcript)
+
+        file_name = os.path.basename(file_path)
+        return file_name, transcript, detected_sheet
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return os.path.basename(file_path), "", ""
+
+
+def process_files(uploaded_excel_file, uploaded_audio_file):
 
     sop_data = extract_sop_items_from_excel(uploaded_excel_file)
 
