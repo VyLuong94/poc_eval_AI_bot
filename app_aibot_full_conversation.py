@@ -203,195 +203,6 @@ def is_greeting_or_intro(sentence):
     return any(kw in sentence_lower for kw in IGNORE_KEYWORDS)
 
 
-def calculate_similarity(sentence, sop_item, model):
-    embeddings = model.encode([sentence, sop_item], convert_to_tensor=True)
-    similarity = util.cos_sim(embeddings[0], embeddings[1])
-    return similarity.item()
-
-
-def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
-    agent_sentences = split_into_sentences(transcript)
-
-    compliant_sentences = sum(
-        any(calculate_similarity(sentence, sop_item['full_text'], model) >= threshold for sop_item in sop_items)
-        for sentence in agent_sentences
-    )
-
-    sentence_compliance_percentage = (
-        (compliant_sentences / len(agent_sentences)) * 100 if agent_sentences else 0
-    )
-
-    sop_compliance_results = []
-    sop_violation_items = []
-
-
-    for idx, sop_item in enumerate(sop_items, 1):
-        matched = False
-        status = "Chưa tuân thủ"
-
-        lower_item = sop_item['full_text'].lower()
-
-
-        if sop_item.get("is_section_header"):
-            sop_compliance_results.append({
-                "STT": "",
-                "Tiêu chí": sop_item["full_text"].upper(),
-                "Trạng thái": "",
-                "Điểm": ""
-            })
-            continue
-
-        if "xác định khách hàng" in lower_item:
-            if any(re.search(r"\b(chị|anh)\s+\w+", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-        elif "xác định người thân" in lower_item:
-            if any(re.search(r"\b(chị|anh|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-        elif re.search(r"\b(chị|anh)\s+\w+", lower_item):
-            matched = True
-            status = "Đã tuân thủ"
-
-        elif "cám ơn và chào khách hàng" in lower_item:
-            if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-        elif "lời nhắn" in lower_item:
-            if any(re.search(r"lời nhắn", s.lower()) for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-        elif "đơn vị gọi đến" in lower_item or "giới thiệu tên" in lower_item:
-            for s in agent_sentences:
-                s_lower = s.lower()
-                if (
-                    ("em bên" in s_lower in s_lower or "bên" in s_lower) or
-                    (
-                        "phòng công nợ" in s_lower or
-                        "công ty tài chính" in s_lower or
-                        re.search(r"\bh\s*d\b|\bhd\b", s_lower) or
-                        "sài gòn" in s_lower or
-                        "hcm" in s_lower or
-                        "chủ trả góp" in s_lower
-                    ) and
-                    (
-                        "chào" in s_lower or
-                        "xin phép trao đổi" in s_lower or
-                        "xin phép nói chuyện" in s_lower or
-                        "alo" in s_lower or
-                        "cho em hỏi" in s_lower
-                    )
-                ):
-                    matched = True
-                    status = "Đã tuân thủ"
-
-
-        elif "Ghi nhận kết quả cuộc gọi" in lower_item:
-            matched = True
-            status = "Đã tuân thủ"
-
-
-        elif "giọng nói" in lower_item:
-            matched = True
-            status = "Đã tuân thủ"
-
-        elif "ngôn ngữ" in lower_item:
-            matched = True
-            status = "Đã tuân thủ"
-
-        elif "hotline" in lower_item:
-            if any("1900558854" in s for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-        else:
-            if any(calculate_similarity(s, sop_item['full_text'], model) >= threshold for s in agent_sentences):
-                matched = True
-                status = "Đã tuân thủ"
-
-
-        score_val = sop_item.get("score")
-
-        try:
-            if isinstance(score_val, (int, float)):
-                score_int = int(round(score_val))
-            elif isinstance(score_val, str):
-                cleaned_val = score_val.strip().lower()
-                if cleaned_val in ["", "nan", "none", "null"]:
-                    score_int = 0
-                else:
-                    score_int = int(round(float(cleaned_val)))
-            else:
-                score_int = 0
-        except (ValueError, TypeError):
-            score_int = 0
-
-        sop_compliance_results.append({
-            "STT": idx,
-            "Tiêu chí": sop_item['full_text'],
-            "Trạng thái": status,
-            "Điểm": score_int
-        })
-
-        if status == "Chưa tuân thủ":
-            sop_violation_items.append({
-                "STT": idx,
-                "Tiêu chí": sop_item['full_text'],
-                "Điểm": score_int
-            })
-
-    valid_criteria = [item for item in sop_compliance_results if item["STT"] != ""]
-    complied_criteria = [item for item in valid_criteria if item["Trạng thái"] == "Đã tuân thủ"]
-
-    sop_compliance_rate = (
-        len(complied_criteria) / len(valid_criteria) * 100
-        if valid_criteria else 0
-    )
-
-    formatted_violations = "\n".join(
-        f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
-    )
-
-    return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
-
-
-
-def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
-
-    if model is None:
-        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-
-    if isinstance(sop_excel_file, bytes):
-        sop_excel_file = io.BytesIO(sop_excel_file)
-
-    sheet_name = detect_sheet_from_text(agent_transcript)
-
-    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
-
-    try:
-        sop_results, sop_rate, sentence_rate, sop_violations = calculate_sop_compliance_by_sentences(
-            agent_transcript,
-            sop_items,
-            model,
-            threshold=threshold
-        )
-
-        if sop_violations is None:
-            sop_violations = []
-        return sop_results, sop_rate, sentence_rate, sop_violations
-    except Exception as e:
-        return [{
-            "STT": "?",
-            "Tiêu chí": f"Lỗi khi tính SOP: {e}",
-            "Trạng thái": "Lỗi",
-            "Điểm": ""
-        }], 0.0, 0.0, []
-
-
-
 def detect_sheet_from_text(agent_text):
     if not isinstance(agent_text, str):
         return 'Tiêu chí giám sát cuộc gọi KH'
@@ -874,6 +685,197 @@ def split_violation_text(violation_text):
         clean_line = line.strip()
         if clean_line:
             violations.append({"STT": "?", "Tiêu chí": clean_line})
+
+
+def calculate_similarity(sentence, sop_item, model):
+    embeddings = model.encode([sentence, sop_item], convert_to_tensor=True)
+    similarity = util.cos_sim(embeddings[0], embeddings[1])
+    return similarity.item()
+
+
+def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
+    agent_sentences = split_into_sentences(transcript)
+
+    compliant_sentences = sum(
+        any(calculate_similarity(sentence, sop_item['full_text'], model) >= threshold for sop_item in sop_items)
+        for sentence in agent_sentences
+    )
+
+    sentence_compliance_percentage = (
+        (compliant_sentences / len(agent_sentences)) * 100 if agent_sentences else 0
+    )
+
+    sop_compliance_results = []
+    sop_violation_items = []
+
+
+    for idx, sop_item in enumerate(sop_items, 1):
+        matched = False
+        status = "Chưa tuân thủ"
+
+        lower_item = sop_item['full_text'].lower()
+
+
+        if sop_item.get("is_section_header"):
+            sop_compliance_results.append({
+                "STT": "",
+                "Tiêu chí": sop_item["full_text"].upper(),
+                "Trạng thái": "",
+                "Điểm": ""
+            })
+            continue
+
+        if "xác định khách hàng" in lower_item:
+            if any(re.search(r"\b(chị|anh)\s+\w+", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
+        elif "xác định người thân" in lower_item:
+            if any(re.search(r"\b(chị|anh|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
+        elif re.search(r"\b(chị|anh)\s+\w+", lower_item):
+            matched = True
+            status = "Đã tuân thủ"
+
+        elif "cám ơn và chào khách hàng" in lower_item:
+            if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
+        elif "lời nhắn" in lower_item:
+            if any(re.search(r"lời nhắn", s.lower()) for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
+        elif "đơn vị gọi đến" in lower_item or "giới thiệu tên" in lower_item:
+            for s in agent_sentences:
+                s_lower = s.lower()
+                if (
+                    ("em bên" in s_lower in s_lower or "bên" in s_lower) or
+                    (
+                        "phòng công nợ" in s_lower or
+                        "công ty tài chính" in s_lower or
+                        re.search(r"\bh\s*d\b|\bhd\b", s_lower) or
+                        "sài gòn" in s_lower or
+                        "hcm" in s_lower or
+                        "chủ trả góp" in s_lower
+                    ) and
+                    (
+                        "chào" in s_lower or
+                        "xin phép trao đổi" in s_lower or
+                        "xin phép nói chuyện" in s_lower or
+                        "alo" in s_lower or
+                        "cho em hỏi" in s_lower
+                    )
+                ):
+                    matched = True
+                    status = "Đã tuân thủ"
+
+
+        elif "Ghi nhận kết quả cuộc gọi" in lower_item:
+            matched = True
+            status = "Đã tuân thủ"
+
+
+        elif "giọng nói" in lower_item:
+            matched = True
+            status = "Đã tuân thủ"
+
+        elif "ngôn ngữ" in lower_item:
+            matched = True
+            status = "Đã tuân thủ"
+
+        elif "hotline" in lower_item:
+            if any("1900558854" in s for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+        else:
+            if any(calculate_similarity(s, sop_item['full_text'], model) >= threshold for s in agent_sentences):
+                matched = True
+                status = "Đã tuân thủ"
+
+
+        score_val = sop_item.get("score", 0)  
+
+        try:
+
+            if isinstance(score_val, (int, float)):
+                score_int = int(round(score_val)) 
+            elif isinstance(score_val, str):
+                cleaned_val = score_val.strip().lower()
+                if cleaned_val in ["", "nan", "none", "null"]:
+                    score_int = 0  
+                else:
+                    score_int = int(round(float(cleaned_val)))  
+            else:
+                score_int = 0  
+        except (ValueError, TypeError) as e:
+            score_int = 0  
+            print(f"Error converting score value: {e}")  
+
+
+        sop_compliance_results.append({
+            "STT": idx,
+            "Tiêu chí": sop_item['full_text'],
+            "Trạng thái": status,
+            "Điểm": score_int
+        })
+
+        if status == "Chưa tuân thủ":
+            sop_violation_items.append({
+                "STT": idx,
+                "Tiêu chí": sop_item['full_text'],
+                "Điểm": score_int
+            })
+
+    valid_criteria = [item for item in sop_compliance_results if item["STT"] != ""]
+    complied_criteria = [item for item in valid_criteria if item["Trạng thái"] == "Đã tuân thủ"]
+
+    sop_compliance_rate = (
+        len(complied_criteria) / len(valid_criteria) * 100
+        if valid_criteria else 0
+    )
+
+    formatted_violations = "\n".join(
+        f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
+    )
+
+    return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
+
+
+def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
+
+    if model is None:
+        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+    if isinstance(sop_excel_file, bytes):
+        sop_excel_file = io.BytesIO(sop_excel_file)
+
+    sheet_name = detect_sheet_from_text(agent_transcript)
+
+    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+
+    try:
+        sop_results, sop_rate, sentence_rate, sop_violations = calculate_sop_compliance_by_sentences(
+            agent_transcript,
+            sop_items,
+            model,
+            threshold=threshold
+        )
+
+        if sop_violations is None:
+            sop_violations = []
+        return sop_results, sop_rate, sentence_rate, sop_violations
+    except Exception as e:
+        return [{
+            "STT": "?",
+            "Tiêu chí": f"Lỗi khi tính SOP: {e}",
+            "Trạng thái": "Lỗi",
+            "Điểm": ""
+        }], 0.0, 0.0, []
+
 
 
 def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
