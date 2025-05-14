@@ -605,8 +605,11 @@ def generate_response(text, label):
     Phản hồi:
     """
     response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Bạn là nhân viên thu hồi nợ, hãy trả lời khách hàng bằng tiếng Việt, thân thiện và thực tế."},
+            {"role": "user", "content": prompt}
+        ],
         temperature=0.7,
         max_tokens=300
     )
@@ -1044,19 +1047,32 @@ def main():
 
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
+                # try:
+                #     qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                #         uploaded_excel_file, uploaded_audio_file
+                #     )
+
+                # except Exception as e:
+                #     st.error(f"Lỗi khi xử lý tệp: {e}")
+                #     return
+
+                # st.subheader("Văn bản thu được từ các tệp âm thanh:")
+                # for file_name, transcript in transcripts_by_file.items():
+                #     st.write(f"**Tệp âm thanh**: {file_name}")
+                #     st.write(transcript)
+
                 try:
-                    qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
-                        uploaded_excel_file, uploaded_audio_file
-                    )
+     
+                    file_name, transcript, detected_sheet = process_audio_file(uploaded_audio_file)
+
+                    st.subheader("Văn bản thu được từ tệp âm thanh:")
+                    st.write(f"**Tệp âm thanh**: {file_name}")
+                    st.write(transcript)
+
 
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
-
-                st.subheader("Văn bản thu được từ các tệp âm thanh:")
-                for file_name, transcript in transcripts_by_file.items():
-                    st.write(f"**Tệp âm thanh**: {file_name}")
-                    st.write(transcript)
 
                     analysis_result = analyze_call_transcript(transcript)
                     tone_chunks = analysis_result["tone_chunks"]
