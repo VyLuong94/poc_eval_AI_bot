@@ -148,25 +148,32 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         implementation = str(row['Hướng dẫn thực hiện']).strip()
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        if (
-            not code and not title
-        ):
+        if not code and not title:
             continue  
 
-        if code.isupper() and code:
-            merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+        if code.isupper():
             sop_items.append({
                 "section_header": None,
-                "full_text": f"{code}",
+                "full_text": f"{title}",
                 "score": score, 
-                "implementation": merged_text, 
+                "implementation": "", 
                 "evaluation_guide": "",
                 "is_section_header": True
             })
             continue
 
+        merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+        sop_items.append({
+            "section_header": current_section, 
+            "full_text": f"{title}",
+            "score": score,
+            "implementation": merged_text,
+            "evaluation_guide": evaluation_guide,
+            "is_section_header": False
+        })
 
     return sop_items
+
 
 
 def split_into_sentences(text):
@@ -1088,7 +1095,7 @@ def main():
                         st.subheader("Chi tiết từng tiêu chí:")
                         df_sop_results = pd.DataFrame(results['sop_compliance_results'])
                         df_sop_results = df_sop_results[df_sop_results["Trạng thái"] != ""]
-                        
+
                         df_sop_results = df_sop_results[["Tiêu chí", "Trạng thái", "Điểm"]]
                         df_sop_results = df_sop_results.drop_duplicates(subset=["Tiêu chí"])
                         df_sop_results = df_sop_results.reset_index(drop=True)
