@@ -979,101 +979,75 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     return eval_result
 
 
-# func process audio by batch
-def process_files(uploaded_excel_file, uploaded_zip_audio):
-    try:
-        qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
+def process_files(uploaded_excel_file, uploaded_audio_file):
+    import pandas as pd
 
-        transcripts_by_file = {}
-        detected_sheets_by_file = {}
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with zipfile.ZipFile(uploaded_zip_audio, "r") as zip_ref:
+    sop_data = extract_sop_items_from_excel(uploaded_excel_file)
+
+    transcripts_by_file = {}
+    detected_sheets_by_file = {}
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        audio_paths = []
+
+
+        if uploaded_audio_file.name.endswith(".zip"):
+            with zipfile.ZipFile(uploaded_audio_file, "r") as zip_ref:
                 zip_ref.extractall(temp_dir)
 
-            audio_files = []
             for root, _, files in os.walk(temp_dir):
                 for file in files:
-                    if file.lower().endswith(".wav"):
-                        audio_files.append(os.path.join(root, file))
-
-            for i, file_path in enumerate(audio_files, start=1):
-                file_name = os.path.basename(file_path)
-
-                try:
-
-                    with open(file_path, "rb") as audio_file:
-                        transcript = transcribe_audio(audio_file)
-                    transcripts_by_file[file_name] = transcript
+                    if file.endswith(".wav"):
+                        audio_paths.append(os.path.join(root, file))
 
 
-                    detected_sheet = detect_sheet_from_text(transcript)
-                    detected_sheets_by_file[file_name] = detected_sheet
+        elif uploaded_audio_file.name.endswith(".wav"):
+            wav_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=temp_dir)
+            wav_temp.write(uploaded_audio_file.read())
+            wav_temp.close()
+            audio_paths.append(wav_temp.name)
 
-                except Exception as e:
-                    print(f"Lỗi khi xử lý {file_name}: {e}")
-                    transcripts_by_file[file_name] = ""
-                    detected_sheets_by_file[file_name] = ""
+        else:
+            raise ValueError("Chỉ hỗ trợ tệp .zip hoặc .wav")
 
-        return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
-
-    except Exception as e:
-        print(f"Lỗi khi xử lý batch file: {e}")
-        return None, None, None, {}, {}
+        for file_path in audio_paths:
+            file_name, transcript, detected_sheet = process_audio_file(file_path)
+            transcripts_by_file[file_name] = transcript
+            detected_sheets_by_file[file_name] = detected_sheet
 
 
-# func process each file audio
-def process_audio_file(file_path):
-    try:
-        transcript = transcribe_audio(file_path)
+    qa_chain = None
+    retriever = None
 
-        detected_sheet = detect_sheet_from_text(transcript)
+    return qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
-        file_name = os.path.basename(file_path)
-        return file_name, transcript, detected_sheet
-    except Exception as e:
-        print(f"Error processing {file_path}: {e}")
-        return os.path.basename(file_path), "", ""
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
-    # uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (ZIP chứa các tệp .wav)", type=["zip"])
-    uploaded_audio_file = st.file_uploader("Tải file ghi âm cuộc gọi (.mp3 hoặc .wav)", type=["wav"])
+    uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav) ", type=["zip"])
 
     if uploaded_excel_file and uploaded_audio_file:
         st.success("Tải tệp thành công!")
 
         if st.button("Đánh giá"):
             with st.spinner("Đang xử lý..."):
-                # try:
-                #     qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
-                #         uploaded_excel_file, uploaded_audio_file
-                #     )
-
-                # except Exception as e:
-                #     st.error(f"Lỗi khi xử lý tệp: {e}")
-                #     return
-
-                # st.subheader("Văn bản thu được từ các tệp âm thanh:")
-                # for file_name, transcript in transcripts_by_file.items():
-                #     st.write(f"**Tệp âm thanh**: {file_name}")
-                #     st.write(transcript)
-
                 try:
-     
-                    file_name, transcript, detected_sheet = process_audio_file(uploaded_audio_file)
-
-                    st.subheader("Văn bản thu được từ tệp âm thanh:")
-                    st.write(f"**Tệp âm thanh**: {file_name}")
-                    st.write(transcript)
-
+                    qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                        uploaded_excel_file, uploaded_audio_file
+                    )
 
                 except Exception as e:
                     st.error(f"Lỗi khi xử lý tệp: {e}")
                     return
+
+                st.subheader("Văn bản thu được từ các tệp âm thanh:")
+                for file_name, transcript in transcripts_by_file.items():
+                    st.write(f"**Tệp âm thanh**: {file_name}")
+                    st.write(transcript)
 
                     analysis_result = analyze_call_transcript(transcript)
                     tone_chunks = analysis_result["tone_chunks"]
