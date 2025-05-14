@@ -162,16 +162,12 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             })
             continue
 
-        if code.count('.') == 2:  
+        if code.count('.') == 2: 
             parts = code.strip().split('.')
-            
             if all(p.isdigit() for p in parts) and len(parts) == 3:
-                score = row['Điểm']
-                if pd.isna(score):  
-                    continue
-
+                if pd.isna(score):
+                    score = 0  
                 merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
-
                 sop_items.append({
                     "section_header": current_section, 
                     "full_text": title,
@@ -180,6 +176,21 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
                     "evaluation_guide": evaluation_guide,
                     "is_section_header": False
                 })
+
+
+        elif code.count('.') == 1: 
+            if pd.isna(score):
+                score = 0 
+            sop_items.append({
+                "section_header": None,
+                "full_text": title,
+                "score": score,
+                "implementation": "",
+                "evaluation_guide": "",
+                "is_section_header": True
+            })
+        else:
+            continue
 
     return sop_items
 
