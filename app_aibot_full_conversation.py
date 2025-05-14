@@ -151,7 +151,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         if not code and not title:
             continue  
 
-        if code.isupper():
+        if code.isupper() and code:
             sop_items.append({
                 "section_header": None,
                 "full_text": f"{title}",
@@ -160,9 +160,12 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
                 "evaluation_guide": "",
                 "is_section_header": True
             })
+            current_section = title  
             continue
 
+
         merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+
         sop_items.append({
             "section_header": current_section, 
             "full_text": f"{title}",
@@ -172,8 +175,8 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             "is_section_header": False
         })
 
-    return sop_items
 
+    return sop_items
 
 
 def split_into_sentences(text):
