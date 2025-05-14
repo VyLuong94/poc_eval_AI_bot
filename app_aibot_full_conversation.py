@@ -120,21 +120,35 @@ def detect_intent(text):
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
     if isinstance(file_path, BytesIO):
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
     elif isinstance(file_path, pd.DataFrame):
-        df = file_path
+        df = file_path.copy()
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
 
-    df.columns = df.columns.str.strip()
-    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+    header_row_idx = None
+    for i, row in df.iterrows():
+        if 'Mã tiêu chí' in row.values:
+            header_row_idx = i
+            break
+
+    if header_row_idx is None:
+        raise ValueError("Không tìm thấy dòng tiêu đề chứa 'Mã tiêu chí'")
+
+    df.columns = df.iloc[header_row_idx]
+    df = df.iloc[header_row_idx + 1:].reset_index(drop=True)
+
+
+    df.columns = df.columns.astype(str).str.strip()
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed|nan', na=True)]
+
 
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
-        raise ValueError(f"Missing columns: {', '.join(missing_columns)}")
+        raise ValueError(f"Thiếu các cột: {', '.join(missing_columns)}")
 
-    df = df[required_columns]
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
     df.fillna("", inplace=True)
 
@@ -149,32 +163,21 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
         if not code and not title:
-            continue  
-
-        if code.isupper() and code:
-            sop_items.append({
-                "section_header": None,
-                "full_text": f"{title}",
-                "score": score, 
-                "implementation": "", 
-                "evaluation_guide": "",
-                "is_section_header": True
-            })
-            current_section = title  
             continue
 
+        if code.count('.') == 1:
+            current_section = title
+            continue
 
         merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
-
         sop_items.append({
-            "section_header": current_section, 
-            "full_text": f"{title}",
+            "section_header": current_section,
+            "full_text": title,
             "score": score,
             "implementation": merged_text,
             "evaluation_guide": evaluation_guide,
             "is_section_header": False
         })
-
 
     return sop_items
 
