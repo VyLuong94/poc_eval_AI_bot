@@ -979,58 +979,52 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     return eval_result
 
 
-def process_audio_file(file_path):
+def process_audio_file(file_path_or_obj, file_name=None):
     try:
-        transcript = transcribe_audio(file_path)
+        if isinstance(file_path_or_obj, (str, bytes, os.PathLike)):
+            with open(file_path_or_obj, "rb") as audio_file:
+                transcript = transcribe_audio(audio_file)
+        else:
+          
+            transcript = transcribe_audio(file_path_or_obj)
 
         detected_sheet = detect_sheet_from_text(transcript)
 
-        file_name = os.path.basename(file_path)
+        file_name = file_name or os.path.basename(file_path_or_obj)
         return file_name, transcript, detected_sheet
     except Exception as e:
-        print(f"Error processing {file_path}: {e}")
-        return os.path.basename(file_path), "", ""
+        print(f"Error processing {file_name or file_path_or_obj}: {e}")
+        return file_name or "unknown", "", ""
+
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
-
     sop_data = extract_sop_items_from_excel(uploaded_excel_file)
 
     transcripts_by_file = {}
     detected_sheets_by_file = {}
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        audio_paths = []
+    if uploaded_audio_file.name.endswith(".zip"):
+        with zipfile.ZipFile(uploaded_audio_file) as z:
+            for file_name in z.namelist():
+                if file_name.lower().endswith(".wav"):
+                    with z.open(file_name) as wav_file:
+                        file_like = BytesIO(wav_file.read())
+                        f_name, transcript, detected_sheet = process_audio_file(file_like, file_name)
+                        transcripts_by_file[f_name] = transcript
+                        detected_sheets_by_file[f_name] = detected_sheet
 
 
-        if uploaded_audio_file.name.endswith(".zip"):
-            with zipfile.ZipFile(uploaded_audio_file, "r") as zip_ref:
-                zip_ref.extractall(temp_dir)
+    elif uploaded_audio_file.name.lower().endswith(".wav"):
+        f_name, transcript, detected_sheet = process_audio_file(uploaded_audio_file, uploaded_audio_file.name)
+        transcripts_by_file[f_name] = transcript
+        detected_sheets_by_file[f_name] = detected_sheet
 
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    if file.endswith(".wav"):
-                        audio_paths.append(os.path.join(root, file))
-
-
-        elif uploaded_audio_file.name.endswith(".wav"):
-            wav_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=temp_dir)
-            wav_temp.write(uploaded_audio_file.read())
-            wav_temp.close()
-            audio_paths.append(wav_temp.name)
-
-        else:
-            raise ValueError("Chỉ hỗ trợ tệp .zip hoặc .wav")
-
-        for file_path in audio_paths:
-            file_name, transcript, detected_sheet = process_audio_file(file_path)
-            transcripts_by_file[file_name] = transcript
-            detected_sheets_by_file[file_name] = detected_sheet
-
+    else:
+        raise ValueError("Định dạng tệp âm thanh không hợp lệ. Chỉ hỗ trợ .zip hoặc .wav")
 
     qa_chain = None
     retriever = None
-
     return qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
