@@ -118,9 +118,6 @@ def detect_intent(text):
     return "Không rõ"
 
 
-
-# --- SOP COMPLIANCE FUNCTIONS ---
-
 def extract_sop_items_from_excel(file_path, sheet_name=0):
     if isinstance(file_path, BytesIO):
         df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
@@ -954,7 +951,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     eval_result["selected_method"] = selected_method
     return eval_result
-
 
 
 # func process audio by batch
