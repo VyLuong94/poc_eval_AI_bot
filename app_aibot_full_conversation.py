@@ -162,11 +162,12 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             })
             continue
 
-        if code.replace('.', '').isdigit() and len(code.split('.')) == 3:
+        parts = code.strip().split('.')
+        if all(p.isdigit() for p in parts) and len(parts) >= 2:
             merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
             sop_items.append({
                 "section_header": current_section,
-                "full_text": f"{title}",
+                "full_text": title,
                 "score": score,
                 "implementation": merged_text,
                 "evaluation_guide": evaluation_guide,
