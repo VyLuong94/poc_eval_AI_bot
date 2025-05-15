@@ -138,48 +138,42 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
     df.fillna("", inplace=True)
 
-    grouped = {}
-    for _, row in df.iterrows():
-        code = str(row['Mã tiêu chí']).strip()
-        if not code or code.lower() == 'nan':
-            continue
-
-        if code not in grouped:
-            grouped[code] = {
-                "Tên tiêu chí đánh giá": [],
-                "Hướng dẫn thực hiện": [],
-                "Hướng dẫn đánh giá": [],
-                "Điểm": 0
-            }
-
-        grouped[code]["Tên tiêu chí đánh giá"].append(str(row['Tên tiêu chí đánh giá']).strip())
-        grouped[code]["Hướng dẫn thực hiện"].append(str(row['Hướng dẫn thực hiện']).strip())
-        grouped[code]["Hướng dẫn đánh giá"].append(str(row['Hướng dẫn đánh giá']).strip())
-
-        try:
-            score = float(row['Điểm'])
-        except:
-            score = 0
-        grouped[code]["Điểm"] = max(grouped[code]["Điểm"], score)
-
-
     sop_items = []
-    for code, content in grouped.items():
-        title = " | ".join(filter(None, content["Tên tiêu chí đánh giá"]))
-        implementation = " | ".join(filter(None, content["Hướng dẫn thực hiện"]))
-        evaluation_guide = " | ".join(filter(None, content["Hướng dẫn đánh giá"]))
-        score = content["Điểm"]
+    current_section = None
 
-        is_section_header = code.isupper()
+    for _, row in df.iterrows():
+            code = str(row['Mã tiêu chí']).strip()
+            title = str(row['Tên tiêu chí đánh giá']).strip()
+            score = row['Điểm']
+            implementation = str(row['Hướng dẫn thực hiện']).strip()
+            evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        sop_items.append({
-            "section_header": None,
-            "full_text": title if is_section_header else f"{title} - {implementation} - {evaluation_guide}",
-            "score": None if is_section_header else score,
-            "implementation": "" if is_section_header else implementation,
-            "evaluation_guide": "" if is_section_header else evaluation_guide,
-            "is_section_header": is_section_header
-        })
+            if not code or code.lower() in ['nan', '']:
+                continue
+
+
+            if code.isupper() and code:
+                sop_items.append({
+                    "section_header": None,
+                    "full_text": f"{title}",
+                    "score": None,
+                    "implementation": "",
+                    "evaluation_guide": "",
+                    "is_section_header": True
+                })
+                continue
+
+
+            merged_text = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+
+            sop_items.append({
+                "section_header": current_section,
+                "full_text": f"{title}",
+                "score": score,
+                "implementation": merged_text,
+                "evaluation_guide": evaluation_guide,
+                "is_section_header": False
+            })
 
     return sop_items
 
@@ -238,7 +232,6 @@ def detect_sheet_from_text(agent_text):
         return 'Tiêu chí giám sát cuộc gọi NT'
 
     return 'Tiêu chí giám sát cuộc gọi KH'
-
 
 
 @st.cache_resource
@@ -816,12 +809,12 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 status = "Đã tuân thủ"
 
 
-        score_val = sop_item.get("score", None)  
+        score_val = sop_item.get("score", None)
 
         print(f"Score for SOP Item {idx}: {score_val}")
 
         if score_val is None or score_val == "":
-            score_int = 0 
+            score_int = 0
         else:
             try:
                 if isinstance(score_val, (int, float)):
@@ -829,13 +822,13 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 elif isinstance(score_val, str):
                     cleaned_val = score_val.strip().lower()
                     if cleaned_val in ["", "nan", "none", "null"]:
-                        score_int = 0  
+                        score_int = 0
                     else:
-                        score_int = int(round(float(cleaned_val)))  
+                        score_int = int(round(float(cleaned_val)))
                 else:
-                    score_int = 0 
+                    score_int = 0
             except (ValueError, TypeError) as e:
-                score_int = 0 
+                score_int = 0
                 print(f"Error converting score value for SOP Item {idx}: {e}")
 
 
@@ -993,7 +986,7 @@ def process_audio_file(file_path_or_obj, file_name=None):
             with open(file_path_or_obj, "rb") as audio_file:
                 transcript = transcribe_audio(audio_file)
         else:
-          
+
             transcript = transcribe_audio(file_path_or_obj)
 
         detected_sheet = detect_sheet_from_text(transcript)
