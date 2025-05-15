@@ -880,6 +880,13 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
 
         if sop_violations is None:
             sop_violations = []
+
+
+        for result in sop_results:
+            result.setdefault("STT", "?")
+            result.setdefault("Tiêu chí", "")
+            result.setdefault("Trạng thái", "Không xác định")
+            result.setdefault("Điểm", "")
         return sop_results, sop_rate, sentence_rate, sop_violations
     except Exception as e:
         return [{
