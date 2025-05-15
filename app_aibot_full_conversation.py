@@ -704,7 +704,6 @@ def calculate_similarity(sentence, sop_item, model):
 
 def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
     agent_sentences = split_into_sentences(transcript)
-
     compliant_sentences = sum(
         any(calculate_similarity(sentence, sop_item['full_text'], model) >= threshold for sop_item in sop_items)
         for sentence in agent_sentences
@@ -717,13 +716,10 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     sop_compliance_results = []
     sop_violation_items = []
 
-
     for idx, sop_item in enumerate(sop_items, 1):
         matched = False
         status = "Chưa tuân thủ"
-
         lower_item = sop_item['full_text'].lower()
-
 
         if sop_item.get("is_section_header"):
             sop_compliance_results.append({
@@ -762,7 +758,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             for s in agent_sentences:
                 s_lower = s.lower()
                 if (
-                    ("em bên" in s_lower in s_lower or "bên" in s_lower) or
+                    ("em bên" in s_lower or "bên" in s_lower) or
                     (
                         "phòng công nợ" in s_lower or
                         "công ty tài chính" in s_lower or
@@ -770,23 +766,20 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                         "sài gòn" in s_lower or
                         "hcm" in s_lower or
                         "chủ trả góp" in s_lower
-                    ) and
-                    (
-                        "chào" in s_lower or
-                        "xin phép trao đổi" in s_lower or
-                        "xin phép nói chuyện" in s_lower or
-                        "alo" in s_lower or
-                        "cho em hỏi" in s_lower
                     )
+                ) and (
+                    "chào" in s_lower or
+                    "xin phép trao đổi" in s_lower or
+                    "xin phép nói chuyện" in s_lower or
+                    "alo" in s_lower or
+                    "cho em hỏi" in s_lower
                 ):
                     matched = True
                     status = "Đã tuân thủ"
 
-
         elif "Ghi nhận kết quả cuộc gọi" in lower_item:
             matched = True
             status = "Đã tuân thủ"
-
 
         elif "giọng nói" in lower_item:
             matched = True
@@ -800,16 +793,13 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             if any("1900558854" in s for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
+
         else:
             if any(calculate_similarity(s, sop_item['full_text'], model) >= threshold for s in agent_sentences):
                 matched = True
                 status = "Đã tuân thủ"
 
-
         score_val = sop_item.get("score", None)
-
-        print(f"Score for SOP Item {idx}: {score_val}")
-
         if score_val is None or score_val == "":
             score_int = 0
         else:
@@ -824,25 +814,22 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                         score_int = int(round(float(cleaned_val)))
                 else:
                     score_int = 0
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 score_int = 0
-                print(f"Error converting score value for SOP Item {idx}: {e}")
 
-
-        sop_compliance_results.append({
+        result_item = {
             "STT": idx,
             "Tiêu chí": sop_item['full_text'],
             "Trạng thái": status,
             "Điểm": score_int
-        })
+        }
+
+        sop_compliance_results.append(result_item)
 
         if status == "Chưa tuân thủ":
-            sop_violation_items.append({
-                "STT": idx,
-                "Tiêu chí": sop_item['full_text'],
-                "Điểm": score_int
-            })
+            sop_violation_items.append(result_item)
 
+    # Ensure all items have necessary fields
     processed_results = []
     for r in sop_compliance_results:
         if isinstance(r, dict):
@@ -854,7 +841,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
     valid_criteria = [
         item for item in processed_results
-        if isinstance(item, dict) and item.get("STT") != "" and "Trạng thái" in item
+        if item.get("STT") != "" and item.get("Trạng thái") in ["Đã tuân thủ", "Chưa tuân thủ"]
     ]
 
     complied_criteria = [
@@ -870,10 +857,13 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
         f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
     )
 
-    return sop_compliance_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
+    return processed_results, sop_compliance_rate, sentence_compliance_percentage, formatted_violations
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
+    import io
+    from sentence_transformers import SentenceTransformer
+
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
@@ -891,22 +881,21 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             threshold=threshold
         )
 
-        if sop_violations is None:
-            sop_violations = []
-
+        safe_results = []
         for result in sop_results:
             if isinstance(result, dict):
                 result.setdefault("STT", "?")
                 result.setdefault("Tiêu chí", "")
                 result.setdefault("Trạng thái", "Không xác định")
                 result.setdefault("Điểm", "")
+                safe_results.append(result)
 
-        return sop_results, sop_rate, sentence_rate, sop_violations
+        return safe_results, sop_rate, sentence_rate, sop_violations
 
     except Exception as e:
         return [{
             "STT": "?",
-            "Tiêu chí": f"Lỗi khi tính SOP: {e}",
+            "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
             "Trạng thái": "Lỗi",
             "Điểm": ""
         }], 0.0, 0.0, []
