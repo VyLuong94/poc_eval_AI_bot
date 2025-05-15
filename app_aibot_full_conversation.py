@@ -119,27 +119,27 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
+
     if isinstance(file_path, BytesIO):
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
     elif isinstance(file_path, pd.DataFrame):
-        df = file_path.copy()
+        df = file_path
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
 
     df.columns = df.columns.str.strip()
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
-
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Thiếu cột dữ liệu: {missing_cols}")
+    if not all(col in df.columns for col in required_columns):
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        raise ValueError(f"Thiếu cột dữ liệu cần thiết: {missing_cols}")
+
+    df = df.dropna(subset=required_columns, how='all') 
+    df = df[~df[required_columns].apply(lambda x: x.astype(str).str.strip().eq('').all(), axis=1)]
 
     df = df[required_columns]
-
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
-
-
     df.fillna("", inplace=True)
 
     sop_items = []
@@ -152,7 +152,10 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
         implementation = str(row['Hướng dẫn thực hiện']).strip()
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        if not code or code.lower() in ['nan', ''] or (len(code) == 1 and code.isalpha()) or code.replace('.', '').isnumeric() is False and score == "":
+        if not code or code.lower() in ['nan', '']:
+            continue
+
+        if len(code) == 1 and code.isalpha():
             current_section = {
                 "section": title,
                 "items": []
@@ -161,7 +164,6 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             continue
 
         merged_description = " - ".join(filter(None, [title, implementation, evaluation_guide]))
-
 
         if current_section is not None:
             current_section["items"].append({
