@@ -142,35 +142,47 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     current_section = None
 
     for _, row in df.iterrows():
-            code = str(row['Mã tiêu chí']).strip()
-            title = str(row['Tên tiêu chí đánh giá']).strip()
-            score = row['Điểm']
-            implementation = str(row['Hướng dẫn thực hiện']).strip()
-            evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
+        if pd.isna(row['Mã tiêu chí']):
+            continue
+        code = str(row['Mã tiêu chí']).strip()
+        if not code or code.lower() in ['nan', '']:
+            continue
 
-            if not code or code.lower() in ['nan', '']:
-                continue
+        title = str(row['Tên tiêu chí đánh giá']).strip()
+        implementation = str(row['Hướng dẫn thực hiện']).strip()
+        evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-            if len(code) == 1 and code.isalpha():
-                  current_section = {
-                      "section": title,
-                      "items": []
-                  }
-                  sop_items.append(current_section)
-                  continue
+        score = row['Điểm']
+        if pd.isna(score) or score == '':
+            score = 0
+        else:
+            try:
+                score = int(score)
+            except:
+                score = 0
 
-            merged_description = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+        if len(code) == 1 and code.isalpha():
+            current_section = {
+                "section": title,
+                "items": []
+            }
+            sop_items.append(current_section)
+            continue
 
-            if current_section is not None:
-                  current_section["items"].append({
-                      "code": code,
-                      "title": title,
-                      "score": score,
-                      "description": merged_description
-                  })
+        if current_section is None:
+            current_section = {"section": "General", "items": []}
+            sop_items.append(current_section)
+
+        merged_description = " - ".join(filter(None, [title, implementation, evaluation_guide]))
+
+        current_section["items"].append({
+            "code": code,
+            "title": title,
+            "score": score,
+            "description": merged_description
+        })
 
     return sop_items
-
 
 
 def split_into_sentences(text):
