@@ -843,8 +843,9 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 "Điểm": score_int
             })
 
-    valid_criteria = [item for item in sop_compliance_results if item["STT"] != ""]
-    complied_criteria = [item for item in valid_criteria if item["Trạng thái"] == "Đã tuân thủ"]
+    valid_criteria = [item for item in sop_compliance_results if isinstance(item, dict) and item.get("STT") != ""]
+    complied_criteria = [item for item in valid_criteria if item.get("Trạng thái") == "Đã tuân thủ"]
+
 
     sop_compliance_rate = (
         len(complied_criteria) / len(valid_criteria) * 100
