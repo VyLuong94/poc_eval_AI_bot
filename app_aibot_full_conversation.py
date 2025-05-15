@@ -119,49 +119,40 @@ def detect_intent(text):
 
 
 def extract_sop_items_from_excel(file_path, sheet_name=0):
-
     if isinstance(file_path, BytesIO):
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
     elif isinstance(file_path, pd.DataFrame):
-        df = file_path
+        df = file_path.copy()
     else:
-        df = pd.read_excel(file_path, sheet_name=sheet_name, header=1)
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
 
     df.columns = df.columns.str.strip()
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
+
     required_columns = ['Mã tiêu chí', 'Tên tiêu chí đánh giá', 'Điểm', 'Hướng dẫn thực hiện', 'Hướng dẫn đánh giá']
-    if not all(col in df.columns for col in required_columns):
-        raise ValueError("Thiếu cột dữ liệu cần thiết.")
+    missing_cols = [col for col in required_columns if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Thiếu cột dữ liệu: {missing_cols}")
 
     df = df[required_columns]
+
     df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']] = df[['Tên tiêu chí đánh giá', 'Hướng dẫn thực hiện']].ffill()
+
+
     df.fillna("", inplace=True)
 
     sop_items = []
     current_section = None
 
     for _, row in df.iterrows():
-        if pd.isna(row['Mã tiêu chí']):
-            continue
         code = str(row['Mã tiêu chí']).strip()
-        if not code or code.lower() in ['nan', '']:
-            continue
-
         title = str(row['Tên tiêu chí đánh giá']).strip()
+        score = row['Điểm']
         implementation = str(row['Hướng dẫn thực hiện']).strip()
         evaluation_guide = str(row['Hướng dẫn đánh giá']).strip()
 
-        score = row['Điểm']
-        if pd.isna(score) or score == '':
-            score = 0
-        else:
-            try:
-                score = int(score)
-            except:
-                score = 0
-
-        if len(code) == 1 and code.isalpha():
+        if not code or code.lower() in ['nan', ''] or (len(code) == 1 and code.isalpha()) or code.replace('.', '').isnumeric() is False and score == "":
             current_section = {
                 "section": title,
                 "items": []
@@ -171,14 +162,14 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
 
         merged_description = " - ".join(filter(None, [title, implementation, evaluation_guide]))
 
-        sop_items.append({
-            "code": code,
-            "title": title,
-            "score": score,
-            "description": merged_description,
-            "full_text": merged_description, 
-            "is_section_header": False
-        })
+
+        if current_section is not None:
+            current_section["items"].append({
+                "code": code,
+                "title": title,
+                "score": score,
+                "description": merged_description
+            })
 
     return sop_items
 
