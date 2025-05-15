@@ -843,6 +843,13 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 "Điểm": score_int
             })
 
+    for r in sop_compliance_results:
+        if isinstance(r, dict):
+            r.setdefault("STT", "?")
+            r.setdefault("Tiêu chí", "")
+            r.setdefault("Trạng thái", "Không xác định")
+            r.setdefault("Điểm", "")
+
     valid_criteria = [item for item in sop_compliance_results if isinstance(item, dict) and item.get("STT") != ""]
     complied_criteria = [item for item in valid_criteria if item.get("Trạng thái") == "Đã tuân thủ"]
 
@@ -860,18 +867,16 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
-
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     if isinstance(sop_excel_file, bytes):
         sop_excel_file = io.BytesIO(sop_excel_file)
 
-    sheet_name = detect_sheet_from_text(agent_transcript)
-
-    sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
-
     try:
+        sheet_name = detect_sheet_from_text(agent_transcript)
+        sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
+
         sop_results, sop_rate, sentence_rate, sop_violations = calculate_sop_compliance_by_sentences(
             agent_transcript,
             sop_items,
@@ -882,13 +887,15 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
         if sop_violations is None:
             sop_violations = []
 
-
         for result in sop_results:
-            result.setdefault("STT", "?")
-            result.setdefault("Tiêu chí", "")
-            result.setdefault("Trạng thái", "Không xác định")
-            result.setdefault("Điểm", "")
+            if isinstance(result, dict):
+                result.setdefault("STT", "?")
+                result.setdefault("Tiêu chí", "")
+                result.setdefault("Trạng thái", "Không xác định")
+                result.setdefault("Điểm", "")
+
         return sop_results, sop_rate, sentence_rate, sop_violations
+
     except Exception as e:
         return [{
             "STT": "?",
@@ -896,7 +903,6 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             "Trạng thái": "Lỗi",
             "Điểm": ""
         }], 0.0, 0.0, []
-
 
 
 def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
