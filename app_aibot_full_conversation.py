@@ -169,17 +169,15 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             sop_items.append(current_section)
             continue
 
-        if current_section is None:
-            current_section = {"section": "General", "items": []}
-            sop_items.append(current_section)
-
         merged_description = " - ".join(filter(None, [title, implementation, evaluation_guide]))
 
-        current_section["items"].append({
+        sop_items.append({
             "code": code,
             "title": title,
             "score": score,
-            "description": merged_description
+            "description": merged_description,
+            "full_text": merged_description, 
+            "is_section_header": False
         })
 
     return sop_items
