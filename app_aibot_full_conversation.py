@@ -1103,11 +1103,19 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
-def export_single_table_to_excel(df, sheet_name='Sheet1'):
+def export_transposed_table_with_filename(df, file_name, sheet_name="Sheet1"):
     output = io.BytesIO()
+
+    df_t = df.set_index('STT').T.reset_index()
+
+    header = pd.DataFrame([[file_name] + ['']*(df_t.shape[1]-1)], columns=df_t.columns)
+
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, sheet_name=sheet_name, index=False)
+        header.to_excel(writer, sheet_name=sheet_name, index=False, header=False, startrow=0)
+        df_t.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
+    
     return output.getvalue()
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1179,9 +1187,9 @@ def main():
                             st.table(df_display)
 
                             if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
-                                excel_data = export_single_table_to_excel(df_sop_results, sheet_name="Cuoc_goi_nguoi_than")
+                                excel_data = export_transposed_table_with_filename(df_sop_results, sheet_name="Cuoc_goi_nguoi_than")
                             else:
-                                excel_data = export_single_table_to_excel(df_sop_results, sheet_name="Cuoc_goi_khach_hang")
+                                excel_data = export_transposed_table_with_filename(df_sop_results, sheet_name="Cuoc_goi_khach_hang")
 
                             st.download_button(
                                 label="Tải báo cáo tổng hợp (Excel)",
