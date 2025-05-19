@@ -51,7 +51,6 @@ if sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
-
 def transcribe_audio(uploaded_file):
     transcription = openai.audio.transcriptions.create(
         model="gpt-4o-transcribe",
@@ -202,10 +201,7 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
 
 
 def clean_text_sop(text):
-    """
-    Chuẩn hóa, loại bỏ các ký tự không cần thiết, số đầu dòng, dấu ngoặc, dấu câu thừa,
-    xóa khoảng trắng thừa.
-    """
+
     if not isinstance(text, str):
         return ""
 
