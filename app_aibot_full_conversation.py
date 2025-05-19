@@ -1170,9 +1170,6 @@ def main():
                         st.subheader("Tỷ lệ tuân thủ tổng thể:")
                         st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
-                        st.subheader("Tỷ lệ tuân thủ theo từng câu:")
-                        st.markdown(f"- **{results['sentence_compliance_rate']:.2f}%**")
-
                         st.subheader("Chi tiết từng tiêu chí:")
                         df_sop_results = pd.DataFrame(results['sop_compliance_results'])
                         df_sop_results = df_sop_results[df_sop_results["Trạng thái"] != ""]
