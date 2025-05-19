@@ -1107,7 +1107,6 @@ def export_single_table_to_excel(df, sheet_name='Sheet1'):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
-        writer.save()
     return output.getvalue()
 
 
@@ -1175,12 +1174,10 @@ def main():
                                 lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                             )
 
-                            # Hiển thị bảng đã transpose, thêm cột "Tên file audio" bên trái
                             df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
                             df_display.insert(0, "Tên file audio", file_name)
                             st.table(df_display)
 
-                            # Xuất Excel 1 sheet, sheet name dựa trên có chứa "người thân" hay không
                             if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
                                 excel_data = export_single_table_to_excel(df_sop_results, sheet_name="Cuoc_goi_nguoi_than")
                             else:
