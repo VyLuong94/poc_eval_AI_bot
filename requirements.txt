@@ -21,3 +21,4 @@ py_vncorenlp>=0.0.0
 pydub>=0.25.1
 numpy>=1.26.4
 unidecode>=1.0.0
+XlsxWriter>=3.1.9
