@@ -905,8 +905,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
-    import io
-    from sentence_transformers import SentenceTransformer
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -979,7 +977,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     eval_result = {}
 
     try:
-        sop_results, sop_rate, sentence_rate, sop_violations = evaluate_sop_compliance(
+        sop_results, sop_rate, sop_violations = evaluate_sop_compliance(
             agent_transcript, sop_excel_file, threshold=threshold
         )
 
@@ -998,7 +996,6 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
         eval_result["sop_compliance_results"] = sop_results
         eval_result["compliance_rate"] = sop_rate
-        eval_result["sentence_compliance_rate"] = sentence_rate
         eval_result["violations"] = sop_violations
 
     except Exception as e:
