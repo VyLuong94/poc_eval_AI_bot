@@ -904,7 +904,34 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     return processed_results, sop_compliance_rate, formatted_violations
 
 
+def format_sop_results(sop_results, expected_keys=None):
+    """
+    Format lại danh sách kết quả compliance: 
+    - Đảm bảo đủ keys, chuẩn hóa kiểu dữ liệu
+    """
+    if expected_keys is None:
+        expected_keys = ["STT", "Tiêu chí", "Trạng thái", "Điểm"]
+
+    safe_results = []
+    for result in sop_results:
+        if isinstance(result, dict):
+            clean_result = {k: result.get(k, "") for k in expected_keys}
+            clean_result["STT"] = str(clean_result["STT"]).strip() or "?"
+            try:
+                clean_result["Điểm"] = int(float(clean_result["Điểm"]))
+            except Exception:
+                clean_result["Điểm"] = 0
+            if clean_result["Trạng thái"] not in ["Đã tuân thủ", "Chưa tuân thủ"]:
+                clean_result["Trạng thái"] = "Không xác định"
+            clean_result["Tiêu chí"] = str(clean_result["Tiêu chí"])
+            safe_results.append(clean_result)
+    return safe_results
+
+
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
+    import io
+    from sentence_transformers import SentenceTransformer
+
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
@@ -913,7 +940,6 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
 
     try:
         sheet_name = detect_sheet_from_text(agent_transcript)
-
         sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
 
         sop_results, sop_rate, sop_violations = calculate_sop_compliance_by_sentences(
@@ -923,26 +949,7 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             threshold=threshold
         )
 
-        expected_keys = ["STT", "Tiêu chí", "Trạng thái", "Điểm"]
-        safe_results = []
-
-        for result in sop_results:
-            if isinstance(result, dict):
-                clean_result = {k: result.get(k, "") for k in expected_keys}
-
-                clean_result["STT"] = str(clean_result["STT"]).strip() or "?"
-
-                try:
-                    clean_result["Điểm"] = int(float(clean_result["Điểm"]))
-                except Exception:
-                    clean_result["Điểm"] = 0
-
-                if clean_result["Trạng thái"] not in ["Đã tuân thủ", "Chưa tuân thủ"]:
-                    clean_result["Trạng thái"] = "Không xác định"
-
-                clean_result["Tiêu chí"] = str(clean_result["Tiêu chí"])
-
-                safe_results.append(clean_result)
+        safe_results = format_sop_results(sop_results)
 
         return {
             "sop_compliance_results": safe_results,
@@ -956,7 +963,7 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
                 "STT": "?",
                 "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
                 "Trạng thái": "Lỗi",
-                "Điểm": ""
+                "Điểm": 0
             }],
             "compliance_rate": 0.0,
             "violations": []
@@ -964,7 +971,6 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
 
 
 def split_violation_text(violation_text):
-
     if not isinstance(violation_text, str):
         return [{"STT": "?", "Tiêu chí": str(violation_text)}]
 
@@ -975,21 +981,15 @@ def split_violation_text(violation_text):
         clean_line = line.strip()
         if clean_line:
             violations.append({"STT": "?", "Tiêu chí": clean_line})
+    return violations
 
-def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.6):
-    """
-    Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
-    """
-    selected_method = method or "rag"
+
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method="rag", threshold=0.6):
     eval_result = {}
-
     try:
-        # Gọi evaluate_sop_compliance trả về dict
-        sop_eval = evaluate_sop_compliance(
-            agent_transcript, sop_excel_file, threshold=threshold
-        )
 
-        # Lấy các giá trị từ dict
+        sop_eval = evaluate_sop_compliance(agent_transcript, sop_excel_file, threshold=threshold)
+
         sop_results = sop_eval.get("sop_compliance_results", [])
         sop_rate = sop_eval.get("compliance_rate", 0)
         sop_violations = sop_eval.get("violations", [])
@@ -1004,68 +1004,50 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
         if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
             raw_text = sop_violations[0].get("Tiêu chí", "")
-            if "\n" in raw_text:
+            if raw_text and "\n" in raw_text:
                 sop_violations = split_violation_text(raw_text)
 
         eval_result["sop_compliance_results"] = sop_results
-        eval_result["compliance_rate"] = sop_rate * 100
+        eval_result["compliance_rate"] = sop_rate * 100  
         eval_result["violations"] = sop_violations
 
     except Exception as e:
-        eval_result["sop_compliance_results"] = "Lỗi khi đánh giá tuân thủ SOP."
-        eval_result["violations"] = f"Lỗi: {e}"
+        eval_result["sop_compliance_results"] = [{
+            "STT": "?",
+            "Tiêu chí": f"Lỗi khi đánh giá tuân thủ SOP: {e}",
+            "Trạng thái": "Lỗi",
+            "Điểm": 0
+        }]
+        eval_result["violations"] = []
 
-        try:
-            debug_data = {"agent_transcript": agent_transcript, "error": str(e)}
-            debug_json = json.dumps(debug_data, ensure_ascii=False, indent=4)
-            with st.expander("Chi tiết lỗi debug"):
-                st.code(debug_json, language="json")
-        except Exception as file_error:
-            eval_result["file_save_error"] = f"Không thể ghi file debug: {file_error}"
-            st.error(eval_result["file_save_error"])
-
-
-    if selected_method == "rag":
+    if method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
                 eval_result["rag_explanations"] = "Không thể tải mô hình hoặc dữ liệu RAG."
-                eval_result["selected_method"] = selected_method
+                eval_result["selected_method"] = method
                 return eval_result
 
             rag_explanations = []
 
-            for violation in sop_violations:
-                try:
-                    if isinstance(violation, dict):
-                        sop_criterion = violation.get("Tiêu chí", str(violation))
-                    else:
-                        sop_criterion = str(violation)
+            for violation in eval_result["violations"]:
+                sop_criterion = violation.get("Tiêu chí") if isinstance(violation, dict) else str(violation)
+                relevant_context = retriever.get_relevant_documents(sop_criterion)
+                rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
 
-                    relevant_context = retriever.get_relevant_documents(sop_criterion)
-                    rag_context = "\n".join([doc.page_content for doc in relevant_context])
-                    rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+                rag_explanations.append({
+                    "Tiêu chí": sop_criterion,
+                    "Giải thích từ RAG": rag_response
+                })
 
-                    rag_explanations.append({
-                        "Tiêu chí": sop_criterion,
-                        "Giải thích từ RAG": rag_response
-                    })
-
-                except Exception as e:
-                    rag_explanations.append({
-                        "Tiêu chí": str(violation),
-                        "Giải thích từ RAG": f"Lỗi: {e}"
-                    })
-
-            if rag_explanations:
-                eval_result["rag_explanations"] = rag_explanations
+            eval_result["rag_explanations"] = rag_explanations
 
         except Exception as e:
             eval_result["rag_explanations"] = f"Lỗi khi sử dụng RAG: {e}"
 
-    eval_result["selected_method"] = selected_method
+    eval_result["selected_method"] = method
     return eval_result
-
 
 
 def process_audio_file(file_path_or_obj, file_name=None):
@@ -1181,40 +1163,39 @@ def main():
                             threshold=0.6
                         )
 
-                        st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                        st.markdown(f"- **{results['compliance_rate']:.2f}%**")
-
-                        st.subheader("Chi tiết từng tiêu chí:")
-                        df_sop_results = pd.DataFrame(results['sop_compliance_results'])
-                        df_sop_results = df_sop_results[df_sop_results["Trạng thái"] != ""]
-
-                        df_sop_results = df_sop_results[["Tiêu chí", "Trạng thái", "Điểm"]]
-                        df_sop_results = df_sop_results.drop_duplicates(subset=["Tiêu chí"])
-                        df_sop_results = df_sop_results.reset_index(drop=True)
-
-                        df_sop_results["Điểm"] = df_sop_results["Điểm"].replace('', pd.NA)
-                        df_sop_results["Điểm"] = df_sop_results["Điểm"].fillna(0).astype(int)
-
-                        st.table(df_sop_results)
-
-                        df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
-
-                        if not df_violations.empty:
-                            df_violations = df_violations[["Tiêu chí", "Điểm"]]
-                            df_violations["Điểm"] = df_violations["Điểm"].astype(int)
-                            df_violations = df_violations.reset_index(drop=True)
-
-                            st.subheader("Các tiêu chí chưa tuân thủ:")
-                            st.table(df_violations)
+                        compliance_rate = results.get('compliance_rate', None)
+                        if compliance_rate is not None:
+                            st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                            st.markdown(f"- **{compliance_rate:.2f}%**")
                         else:
-                            st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                            st.warning("Không có thông tin tỷ lệ tuân thủ tổng thể.")
 
-                        st.subheader("Phản hồi gợi ý:")
-                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                        st.write(suggestion)
+                        sop_results = results.get('sop_compliance_results', [])
+                        if sop_results:
+                            st.subheader("Chi tiết từng tiêu chí:")
+                            df_sop_results = pd.DataFrame(sop_results)
+
+                            df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+
+                            df_sop_results = df_sop_results[["Tiêu chí", "Trạng thái", "Điểm"]].drop_duplicates(subset=["Tiêu chí"]).reset_index(drop=True)
+
+                            df_sop_results["Điểm"] = pd.to_numeric(df_sop_results["Điểm"], errors='coerce').fillna(0).astype(int)
+
+                            st.table(df_sop_results)
+
+                            df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
+
+                            if not df_violations.empty:
+                                df_violations = df_violations[["Tiêu chí", "Điểm"]].reset_index(drop=True)
+                                st.subheader("Các tiêu chí chưa tuân thủ:")
+                                st.table(df_violations)
+                            else:
+                                st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                        else:
+                            st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
                     except Exception as e:
-                        st.error(f"Lỗi khi đánh giá mức độ tuân thủ SOP cho tệp {file_name}: {e}")
+                        st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
                 cleanup_memory()
 
