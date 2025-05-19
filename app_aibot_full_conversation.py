@@ -755,7 +755,7 @@ def evaluate_transcript(agent_transcript, sop_excel_file, method="embedding", us
 def calculate_similarity(sentence, sop_item, model):
     embeddings = model.encode([sentence, sop_item], convert_to_tensor=True)
     similarity = util.cos_sim(embeddings[0], embeddings[1])
-    return similarity.item(), embeddings[0]
+    return similarity.item()
 
 
 def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshold=0.4):
@@ -897,11 +897,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
     sop_compliance_rate = (len(complied_criteria) / len(valid_criteria) * 100) if valid_criteria else 0
 
-    formatted_violations = "\n".join(
-        f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
-    )
-
-    return processed_results, sop_compliance_rate, formatted_violations
+    return processed_results, sop_compliance_rate, sop_violation_items
 
 
 def format_sop_results(sop_results, expected_keys=None):
