@@ -566,7 +566,7 @@ def load_excel_rag_data(uploaded_excel_file):
 
     except Exception as e:
         print(f"Error loading Excel data: {e}")
-        return None, None, None, None
+        return None, None, None, None, None
 
 
 tokenizer, model, device = load_model()
@@ -1096,7 +1096,6 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
                         transcripts_by_file[f_name] = transcript
                         detected_sheets_by_file[f_name] = detected_sheet
 
-
     elif uploaded_audio_file.name.lower().endswith(".wav"):
         f_name, transcript, detected_sheet = process_audio_file(uploaded_audio_file, uploaded_audio_file.name)
         transcripts_by_file[f_name] = transcript
@@ -1105,9 +1104,7 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     else:
         raise ValueError("Định dạng tệp âm thanh không hợp lệ. Chỉ hỗ trợ .zip hoặc .wav")
 
-    qa_chain = None
-    retriever = None
-    return qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
+    return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
 
