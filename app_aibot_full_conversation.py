@@ -1112,6 +1112,8 @@ st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
+    if uploaded_excel_file:
+        st.write("Tên file đã upload:", uploaded_excel_file.name)
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav) ", type=["zip","wav"])
 
     if uploaded_excel_file and uploaded_audio_file:
