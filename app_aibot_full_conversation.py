@@ -1152,50 +1152,61 @@ def main():
 
                     st.subheader("Đánh giá mức độ tuân thủ SOP:")
                     try:
-                        results = evaluate_combined_transcript_and_compliance(
-                            transcript,
-                            uploaded_excel_file,
-                            method="rag",
-                            threshold=0.6
-                        )
+                        try:
+                            results = evaluate_combined_transcript_and_compliance(
+                                transcript,
+                                uploaded_excel_file,
+                                method="rag",
+                                threshold=0.6
+                            )
 
-                        compliance_rate = results.get('compliance_rate', None)
-                        if compliance_rate is not None:
-                            st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                            st.markdown(f"- **{compliance_rate:.2f}%**")
-                        else:
-                            st.warning("Không có thông tin tỷ lệ tuân thủ tổng thể.")
-
-                        sop_results = results.get('sop_compliance_results', [])
-                        if sop_results:
-                            st.subheader("Chi tiết từng tiêu chí:")
-                            df_sop_results = pd.DataFrame(sop_results)
-
-                            df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
-
-                            df_sop_results = df_sop_results[["Tiêu chí", "Trạng thái", "Điểm"]].drop_duplicates(subset=["Tiêu chí"]).reset_index(drop=True)
-
-                            df_sop_results["Điểm"] = pd.to_numeric(df_sop_results["Điểm"], errors='coerce').fillna(0).astype(int)
-
-                            df_sop_horizontal = df_sop_results.set_index('Tiêu chí').T
-
-                            st.table(df_sop_horizontal)
-
-                            df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
-
-                            if not df_violations.empty:
-                                df_violations = df_violations[["Tiêu chí", "Điểm"]].reset_index(drop=True)
-                                st.subheader("Các tiêu chí chưa tuân thủ:")
-                                st.table(df_violations)
+                            compliance_rate = results.get('compliance_rate', None)
+                            if compliance_rate is not None:
+                                st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                                st.markdown(f"- **{compliance_rate:.2f}%**")
                             else:
-                                st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
-                        else:
-                            st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                                st.warning("Không có thông tin tỷ lệ tuân thủ tổng thể.")
+
+                            sop_results = results.get('sop_compliance_results', [])
+                            if sop_results:
+                                st.subheader("Chi tiết từng tiêu chí:")
+                                df_sop_results = pd.DataFrame(sop_results)
+
+                                df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+
+                                df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
+                                    lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+                                )
+
+                                df_sop_horizontal = df_sop_results.set_index('Tiêu chí').T
+
+                                st.table(df_sop_horizontal)
+
+                                csv_data = df_sop_results.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="Tải báo cáo Chi tiết từng tiêu chí (CSV)",
+                                    data=csv_data,
+                                    file_name="AI_QA_REPORT_GRACE.csv",
+                                    mime="text/csv"
+                                )
+
+                                df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
+
+                                if not df_violations.empty:
+                                    df_violations = df_violations[["Tiêu chí", "Trạng thái"]].reset_index(drop=True)
+                                    st.subheader("Các tiêu chí chưa tuân thủ:")
+                                    st.table(df_violations)
+                                else:
+                                    st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                            else:
+                                st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+
+                        finally:
+                            cleanup_memory()
 
                     except Exception as e:
                         st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
-                cleanup_memory()
 
 if __name__ == "__main__":
     main()
