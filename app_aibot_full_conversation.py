@@ -1105,11 +1105,21 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
 def export_two_tables_to_excel(df_khach_hang, df_nguoi_than, file_name="bao_cao_tong_hop.xlsx"):
     output = io.BytesIO()
+    
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        if "Tên file audio" in df_khach_hang.columns:
+            cols = ["Tên file audio"] + [col for col in df_khach_hang.columns if col != "Tên file audio"]
+            df_khach_hang = df_khach_hang[cols]
+
+        if "Tên file audio" in df_nguoi_than.columns:
+            cols = ["Tên file audio"] + [col for col in df_nguoi_than.columns if col != "Tên file audio"]
+            df_nguoi_than = df_nguoi_than[cols]
+
         df_khach_hang.to_excel(writer, sheet_name='Cuoc_goi_khach_hang', index=False)
         df_nguoi_than.to_excel(writer, sheet_name='Cuoc_goi_nguoi_than', index=False)
-        writer.save()
+
     return output.getvalue()
+
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
@@ -1184,10 +1194,17 @@ def main():
 
                                 st.subheader("Báo cáo các cuộc gọi khách hàng:")
                                 if not df_khach_hang.empty:
-                                    st.table(df_khach_hang.set_index('Tiêu chí').T)
+                                    # Khách hàng
+                                    df_khach_display = df_khach_hang.set_index('Tiêu chí').T
+                                    df_khach_display.insert(0, "Tên file audio", file_name)
+                                    st.table(df_khach_display)
                                 st.subheader("Báo cáo các cuộc gọi người thân:")
+
                                 if not df_nguoi_than.empty:
-                                    st.table(df_nguoi_than.set_index('Tiêu chí').T)
+                                    # Người thân
+                                    df_than_display = df_nguoi_than.set_index('Tiêu chí').T
+                                    df_than_display.insert(0, "Tên file audio", file_name)
+                                    st.table(df_than_display)
 
                                 excel_data = export_two_tables_to_excel(df_khach_hang, df_nguoi_than)
                                 st.download_button(
