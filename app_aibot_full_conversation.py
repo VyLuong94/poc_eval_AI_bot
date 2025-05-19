@@ -205,10 +205,10 @@ def clean_text_sop(text):
     if not isinstance(text, str):
         return ""
 
-    text = re.sub(r'"[^"]*"', '', text)            # Bỏ nội dung trong dấu ngoặc kép
-    text = re.sub(r'\([^)]*\)', '', text)          # Bỏ nội dung trong dấu ngoặc đơn
-    text = re.sub(r'^\s*\d+([\.\-\d]*)[\)\.\-\s]*', '', text)  # Bỏ số thứ tự đầu dòng
-    text = re.sub(r'[;:()\[\]{}"]', '', text) # Bỏ dấu câu đặc biệt
+    text = re.sub(r'"[^"]*"', '', text)            
+    text = re.sub(r'\([^)]*\)', '', text)         
+    text = re.sub(r'^\s*\d+([\.\-\d]*)[\)\.\-\s]*', '', text)  
+    text = re.sub(r'[;:()\[\]{}"]', '', text) 
     text = ' '.join(text.split())
     text = text.replace('\xa0', ' ').strip()
     if not text or re.fullmatch(r'\d+|[^\w\s]+', text):
@@ -1083,7 +1083,6 @@ def process_audio_file(file_path_or_obj, file_name=None):
     except Exception as e:
         print(f"Error processing {file_name or file_path_or_obj}: {e}")
         return file_name or "unknown", "", ""
-
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
