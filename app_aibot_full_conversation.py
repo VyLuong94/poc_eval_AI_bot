@@ -611,7 +611,7 @@ def classify_tone(text, chunk_size=None):
         return label
 
     if chunk_size is None:
-        sentences = split_into_sentences(text)
+        sentences = split_transcript_into_sentences(text)
         results = []
 
         for sentence in sentences:
@@ -635,7 +635,7 @@ def classify_tone(text, chunk_size=None):
 
     else:
 
-        sentences = split_into_sentences(text)
+        sentences = split_transcript_into_sentences(text)
         chunks = [' '.join(sentences[i:i+chunk_size]) for i in range(0, len(sentences), chunk_size)]
 
         labels = []
