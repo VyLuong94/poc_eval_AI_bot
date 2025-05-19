@@ -1103,7 +1103,13 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
-
+def export_two_tables_to_excel(df_khach_hang, df_nguoi_than, file_name="bao_cao_tong_hop.xlsx"):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_khach_hang.to_excel(writer, sheet_name='Cuoc_goi_khach_hang', index=False)
+        df_nguoi_than.to_excel(writer, sheet_name='Cuoc_goi_nguoi_than', index=False)
+        writer.save()
+    return output.getvalue()
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
@@ -1152,7 +1158,6 @@ def main():
 
                     st.subheader("Đánh giá mức độ tuân thủ SOP:")
                     try:
-                        try:
                             results = evaluate_combined_transcript_and_compliance(
                                 transcript,
                                 uploaded_excel_file,
@@ -1160,40 +1165,42 @@ def main():
                                 threshold=0.6
                             )
 
-                            compliance_rate = results.get('compliance_rate', None)
-                            if compliance_rate is not None:
-                                st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                                st.markdown(f"- **{compliance_rate:.2f}%**")
-                            else:
-                                st.warning("Không có thông tin tỷ lệ tuân thủ tổng thể.")
-
                             sop_results = results.get('sop_compliance_results', [])
                             if sop_results:
-                                st.subheader("Chi tiết từng tiêu chí:")
                                 df_sop_results = pd.DataFrame(sop_results)
+                                
+                                df_sop_results["Tên file audio"] = file_name
 
                                 df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
-
                                 df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
                                     lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                                 )
 
-                                df_sop_horizontal = df_sop_results.set_index('Tiêu chí').T
 
-                                st.table(df_sop_horizontal)
+                                mask_nguoi_than = df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False)
+                                df_nguoi_than = df_sop_results[mask_nguoi_than].reset_index(drop=True)
+                                df_khach_hang = df_sop_results[~mask_nguoi_than].reset_index(drop=True)
 
-                                csv_data = df_sop_results.to_csv(index=False).encode('utf-8')
+
+                                st.subheader("Báo cáo các cuộc gọi khách hàng:")
+                                if not df_khach_hang.empty:
+                                    st.table(df_khach_hang.set_index('Tiêu chí').T)
+                                st.subheader("Báo cáo các cuộc gọi người thân:")
+                                if not df_nguoi_than.empty:
+                                    st.table(df_nguoi_than.set_index('Tiêu chí').T)
+
+                                excel_data = export_two_tables_to_excel(df_khach_hang, df_nguoi_than)
                                 st.download_button(
-                                    label="Tải báo cáo Chi tiết từng tiêu chí (CSV)",
-                                    data=csv_data,
-                                    file_name="AI_QA_REPORT_GRACE.csv",
-                                    mime="text/csv"
+                                    label="Tải báo cáo tổng hợp (Excel, 2 sheet)",
+                                    data=excel_data,
+                                    file_name="AI_QA_REPORT_GRACE.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 )
+                                
 
                                 df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
-
                                 if not df_violations.empty:
-                                    df_violations = df_violations[["Tiêu chí", "Trạng thái"]].reset_index(drop=True)
+                                    df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
                                     st.subheader("Các tiêu chí chưa tuân thủ:")
                                     st.table(df_violations)
                                 else:
@@ -1201,11 +1208,8 @@ def main():
                             else:
                                 st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
-                        finally:
-                            cleanup_memory()
-
                     except Exception as e:
-                        st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                            st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
 
 if __name__ == "__main__":
