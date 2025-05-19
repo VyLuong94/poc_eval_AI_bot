@@ -199,7 +199,6 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
     return sop_items
 
 
-
 def clean_text_sop(text):
 
     if not isinstance(text, str):
@@ -1112,7 +1111,6 @@ def export_transposed_table_with_filename(df, file_name, sheet_name="Sheet1"):
         df_pivoted.to_excel(writer, sheet_name=sheet_name, index=False)
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
