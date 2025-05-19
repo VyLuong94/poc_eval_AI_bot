@@ -1063,13 +1063,23 @@ def process_audio_file(file_path_or_obj, file_name=None):
             with open(file_path_or_obj, "rb") as audio_file:
                 transcript = transcribe_audio(audio_file)
         else:
-
+            file_path_or_obj.seek(0)
             transcript = transcribe_audio(file_path_or_obj)
 
         detected_sheet = detect_sheet_from_text(transcript)
 
-        file_name = file_name or os.path.basename(file_path_or_obj)
+        if not file_name:
+            try:
+                file_name = getattr(file_path_or_obj, "name", None)
+                if file_name is None and isinstance(file_path_or_obj, (str, bytes, os.PathLike)):
+                    file_name = os.path.basename(file_path_or_obj)
+                elif file_name is None:
+                    file_name = "unknown"
+            except Exception:
+                file_name = "unknown"
+
         return file_name, transcript, detected_sheet
+
     except Exception as e:
         print(f"Error processing {file_name or file_path_or_obj}: {e}")
         return file_name or "unknown", "", ""
@@ -1077,10 +1087,13 @@ def process_audio_file(file_path_or_obj, file_name=None):
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
+    uploaded_excel_file.seek(0) 
     qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
 
     transcripts_by_file = {}
     detected_sheets_by_file = {}
+
+    uploaded_audio_file.seek(0)
 
     if uploaded_audio_file.name.endswith(".zip"):
         with zipfile.ZipFile(uploaded_audio_file) as z:
