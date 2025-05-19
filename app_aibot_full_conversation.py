@@ -513,7 +513,7 @@ def load_excel_rag_data(uploaded_excel_file):
             excel_file = uploaded_excel_file
         else:
             print("No valid file uploaded.")
-            return None, None, None, None, None
+            return None, None, None, None
 
         xls = pd.ExcelFile(excel_file)
         available_sheets = xls.sheet_names
@@ -521,14 +521,14 @@ def load_excel_rag_data(uploaded_excel_file):
         missing_sheets = [sheet for sheet in required_sheets if sheet not in available_sheets]
         if missing_sheets:
             print(f"Missing sheets: {missing_sheets}")
-            return None, None, None, None, None
+            return None, None, None, None
 
         df_customer_call = pd.read_excel(excel_file, sheet_name='Tiêu chí giám sát cuộc gọi KH')
         df_relative_call = pd.read_excel(excel_file, sheet_name='Tiêu chí giám sát cuộc gọi NT')
 
         if df_customer_call.empty or df_relative_call.empty:
             print("One or both sheets are empty.")
-            return None, None, None, None, None
+            return None, None, None, None
 
         customer_docs = [
             Document(page_content=row_text, metadata={"sheet_name": "Tiêu chí giám sát cuộc gọi KH"})
@@ -566,7 +566,7 @@ def load_excel_rag_data(uploaded_excel_file):
 
     except Exception as e:
         print(f"Error loading Excel data: {e}")
-        return None, None, None, None, None
+        return None, None, None, None
 
 
 tokenizer, model, device = load_model()
@@ -1112,8 +1112,6 @@ st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
-    if uploaded_excel_file:
-        st.write("Tên file đã upload:", uploaded_excel_file.name)
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav) ", type=["zip","wav"])
 
     if uploaded_excel_file and uploaded_audio_file:
