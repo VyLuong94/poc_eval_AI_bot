@@ -1081,7 +1081,7 @@ def process_audio_file(file_path_or_obj, file_name=None):
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
-    sop_data = extract_sop_items_from_excel(load_excel_rag_data)
+    qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
 
     transcripts_by_file = {}
     detected_sheets_by_file = {}
