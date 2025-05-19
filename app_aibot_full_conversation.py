@@ -1004,7 +1004,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 sop_violations = split_violation_text(raw_text)
 
         eval_result["sop_compliance_results"] = sop_results
-        eval_result["compliance_rate"] = sop_rate * 100  
+        eval_result["compliance_rate"] = sop_rate 
         eval_result["violations"] = sop_violations
 
     except Exception as e:
