@@ -905,7 +905,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
-
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
@@ -945,15 +944,23 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
 
                 safe_results.append(clean_result)
 
-        return safe_results, sop_rate, sop_violations
+        return {
+            "sop_compliance_results": safe_results,
+            "compliance_rate": sop_rate,
+            "violations": sop_violations
+        }
 
     except Exception as e:
-        return [{
-            "STT": "?",
-            "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
-            "Trạng thái": "Lỗi",
-            "Điểm": ""
-        }], 0.0, []
+        return {
+            "sop_compliance_results": [{
+                "STT": "?",
+                "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
+                "Trạng thái": "Lỗi",
+                "Điểm": ""
+            }],
+            "compliance_rate": 0.0,
+            "violations": []
+        }
 
 
 def split_violation_text(violation_text):
@@ -977,9 +984,15 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     eval_result = {}
 
     try:
-        sop_results, sop_rate, sop_violations = evaluate_sop_compliance(
+        # Gọi evaluate_sop_compliance trả về dict
+        sop_eval = evaluate_sop_compliance(
             agent_transcript, sop_excel_file, threshold=threshold
         )
+
+        # Lấy các giá trị từ dict
+        sop_results = sop_eval.get("sop_compliance_results", [])
+        sop_rate = sop_eval.get("compliance_rate", 0)
+        sop_violations = sop_eval.get("violations", [])
 
         if not isinstance(sop_violations, list):
             sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
@@ -995,7 +1008,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 sop_violations = split_violation_text(raw_text)
 
         eval_result["sop_compliance_results"] = sop_results
-        eval_result["compliance_rate"] = sop_rate
+        eval_result["compliance_rate"] = sop_rate * 100
         eval_result["violations"] = sop_violations
 
     except Exception as e:
@@ -1052,6 +1065,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
 
     eval_result["selected_method"] = selected_method
     return eval_result
+
 
 
 def process_audio_file(file_path_or_obj, file_name=None):
