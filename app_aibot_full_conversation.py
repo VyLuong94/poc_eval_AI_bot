@@ -1177,7 +1177,9 @@ def main():
 
                             df_sop_results["Điểm"] = pd.to_numeric(df_sop_results["Điểm"], errors='coerce').fillna(0).astype(int)
 
-                            st.table(df_sop_results)
+                            df_sop_horizontal = df_sop_results.set_index['Tiêu chí'].T
+
+                            st.table(df_sop_horizontal)
 
                             df_violations = df_sop_results[df_sop_results["Trạng thái"] != "Đã tuân thủ"]
 
