@@ -1182,7 +1182,8 @@ def main():
                                 label="Tải báo cáo tổng hợp (Excel)",
                                 data=excel_data,
                                 file_name="AI_QA_REPORT_GRACE.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key="download_excel_report" 
                             )
 
                             df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
