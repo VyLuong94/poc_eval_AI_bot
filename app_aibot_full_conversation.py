@@ -1091,11 +1091,8 @@ def export_multiple_sheets(all_results):
         "Cuoc_goi_khach_hang": []
     }
 
-    for df in all_results:
-        if any("người thân" in col.lower() for col in df.columns):
-            group_calls["Cuoc_goi_nguoi_than"].append(df)
-        else:
-            group_calls["Cuoc_goi_khach_hang"].append(df)
+    for sheet_name, df in all_results:
+        group_calls[sheet_name].append(df)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1103,6 +1100,7 @@ def export_multiple_sheets(all_results):
             if dfs:
                 combined = pd.concat(dfs, ignore_index=True)
                 combined.to_excel(writer, sheet_name=sheet_name, index=False)
+
     output.seek(0)
     return output
 
@@ -1110,7 +1108,6 @@ def export_multiple_sheets(all_results):
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
-
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav)", type=["zip", "wav"])
 
@@ -1126,7 +1123,7 @@ def main():
                 st.error(f"Lỗi khi xử lý tệp: {e}")
                 return
 
-            all_results = []
+            all_results_for_export = []
 
             for file_name, transcript in transcripts_by_file.items():
                 st.subheader(f"Tệp âm thanh: {file_name}")
@@ -1152,94 +1149,69 @@ def main():
                     st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
 
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
-                try:
-                    results = evaluate_combined_transcript_and_compliance(
-                        transcript,
-                        uploaded_excel_file,
-                        method="rag",
-                        threshold=0.6
-                    )
+                all_results_for_export = []
 
-                    st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                    st.markdown(f"- **{results['compliance_rate']:.2f}%**")
-
-                    sop_results = results.get('sop_compliance_results', [])
-
-                    if sop_results:
-                        df_sop_results = pd.DataFrame(sop_results)
-                        df_sop_results["Tên file audio"] = file_name
-                        df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
-
-                        df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
-                            lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+                for file_name, transcript in transcripts_by_file.items():
+                    try:
+                        results = evaluate_combined_transcript_and_compliance(
+                            transcript,
+                            uploaded_excel_file,
+                            method="rag",
+                            threshold=0.6
                         )
-
-                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
-
-                        df_pivot = df_sop_results.pivot_table(
-                            index=[],  
-                            columns="Tiêu chí",
-                            values="Trạng thái",
-                            aggfunc='first'
-                        ).reset_index(drop=True)
-
-                        df_pivot.insert(0, "Tên file audio", file_name)
-                        df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
-                        df_pivot["Phản hồi gợi ý"] = suggestion
-
-                        all_results_for_export.append(df_pivot)
-
+                        compliance_rate = results.get('compliance_rate', 0.0)
                         st.subheader("Tỷ lệ tuân thủ tổng thể:")
                         st.markdown(f"- **{compliance_rate:.2f}%**")
 
-                    else:
-                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                        sop_results = results.get('sop_compliance_results', [])
 
-                except Exception as e:
-                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                        if sop_results:
+                            df_sop_results = pd.DataFrame(sop_results)
+                            df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+                            df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
+                                lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+                            )
 
+                            df_pivot = df_sop_results.pivot_table(
+                                index=[],
+                                columns="Tiêu chí",
+                                values="Trạng thái",
+                                aggfunc='first'
+                            ).reset_index(drop=True)
 
-            all_results_for_export = []
+                            df_pivot.insert(0, "Tên file audio", file_name)
+                            df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
 
-            for df_sop_results, file_name, compliance_rate in all_results:
+                            suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                            df_pivot["Phản hồi gợi ý"] = suggestion
 
-                df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+                            is_family_call = df_sop_results["Tiêu chí"].str.lower().str.contains("người thân").any()
 
-                df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
-                    lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
-                )
-                
+                            if is_family_call:
+                                all_results_for_export.append(("Cuoc_goi_nguoi_than", df_pivot))
+                            else:
+                                all_results_for_export.append(("Cuoc_goi_khach_hang", df_pivot))
 
-                df_pivot = df_sop_results.pivot_table(
-                    index=[],  
-                    columns="Tiêu chí",
-                    values="Trạng thái",
-                    aggfunc='first'
-                )
+                        else:
+                            st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
-                df_pivot = df_pivot.reset_index(drop=True)
-
-                df_pivot.insert(0, "Tên file audio", file_name)
-                df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
-
-                suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                df_pivot["Phản hồi gợi ý"] = suggestion
-
-
-            if all_results_for_export:
-                excel_data = export_multiple_sheets(all_results_for_export)
-
-                st.download_button(
-                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                    data=excel_data,
-                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            else:
-                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+                    except Exception as e:
+                        st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
 
-        cleanup_memory()
+                if all_results_for_export:
+                    excel_data = export_multiple_sheets(all_results_for_export)
+
+                    st.download_button(
+                        label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                        data=excel_data,
+                        file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+
+                cleanup_memory()
 
 
 if __name__ == "__main__":
