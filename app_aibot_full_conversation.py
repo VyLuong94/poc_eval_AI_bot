@@ -52,9 +52,13 @@ if sys.version_info >= (3, 8):
 
 
 def transcribe_audio(uploaded_file):
-    transcription = openai.audio.transcriptions.create(
-        model="gpt-4o-transcribe",
-        file=uploaded_file,
+    uploaded_file.seek(0)
+    filename = getattr(uploaded_file, 'name', 'audio.wav')
+    content_type = mimetypes.guess_type(filename)[0] or 'audio/wav'
+
+    transcription = client.audio.transcriptions.create(
+        model="gpt-4o",
+        file=(filename, uploaded_file, content_type),
         language="vi"
     )
     return transcription.text
@@ -1035,6 +1039,7 @@ def transcribe_all_audio(uploaded_audio_file):
                 if file_name.lower().endswith(".wav"):
                     with z.open(file_name) as wav_file:
                         file_like = BytesIO(wav_file.read())
+                        file_like.name = file_name
                         file_like.seek(0)
                         transcript = transcribe_audio(file_like)
                         transcripts_by_file[file_name] = transcript
