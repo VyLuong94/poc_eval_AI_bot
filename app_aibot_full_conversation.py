@@ -1176,30 +1176,32 @@ def main():
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
 
-                        df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
-                        df_display.insert(0, "Tên file audio", file_name)
-                        df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
-                        st.table(df_display)
+                        # df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
+                        # df_display.insert(0, "Tên file audio", file_name)
+                        # df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
+                        # st.table(df_display)
 
-                        df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
-                        if not df_violations.empty:
-                            df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
-                            st.subheader("Các tiêu chí chưa tuân thủ:")
-                            st.table(df_violations)
-                        else:
-                            st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+                        # df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
+                        # if not df_violations.empty:
+                        #     df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
+                        #     st.subheader("Các tiêu chí chưa tuân thủ:")
+                        #     st.table(df_violations)
+                        # else:
+                        #     st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                        st.subheader("Phản hồi gợi ý:")
+                        # st.subheader("Phản hồi gợi ý:")
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
                         st.write(suggestion)
-                        df_display["Phản hồi gợi ý"] = suggestion
+                        df_sop_results["Phản hồi gợi ý"] = suggestion
 
                         all_results.append((df_sop_results, file_name, results['compliance_rate']))
                     else:
-                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                        # st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                        pass
 
                 except Exception as e:
-                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                    # st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                    print(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
 
             if all_results:
