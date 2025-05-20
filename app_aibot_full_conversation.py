@@ -1207,8 +1207,23 @@ def main():
                     except Exception as e:
                         st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
-                cleanup_memory()
+                if all_results_for_export:
+                    excel_data = export_multiple_sheets(all_results_for_export)
+                else:
+                    excel_data = None
+                    st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
+
+                if excel_data is not None:
+                    st.download_button(
+                        label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                        data=excel_data,
+                        file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+
+        cleanup_memory()
 
 if __name__ == "__main__":
     main()
