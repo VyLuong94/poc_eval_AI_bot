@@ -1176,6 +1176,8 @@ def main():
                         st.subheader("Tỷ lệ tuân thủ tổng thể:")
                         st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
+
+                        st.subheader("Chi tiết từng tiêu chí:")
                         sop_results = results.get('sop_compliance_results', [])
                         if sop_results:
                             df_sop_results = pd.DataFrame(sop_results)
