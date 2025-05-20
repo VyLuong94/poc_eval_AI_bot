@@ -1091,8 +1091,12 @@ def export_multiple_sheets(all_results):
         "Cuoc_goi_khach_hang": []
     }
 
-    for sheet_name, df in all_results:
-        group_calls[sheet_name].append(df)
+    for df in all_results:
+
+        if df['Tiêu chí'].str.contains('người thân', case=False, na=False).any():
+            group_calls["Cuoc_goi_nguoi_than"].append(df)
+        else:
+            group_calls["Cuoc_goi_khach_hang"].append(df)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1100,9 +1104,9 @@ def export_multiple_sheets(all_results):
             if dfs:
                 combined = pd.concat(dfs, ignore_index=True)
                 combined.to_excel(writer, sheet_name=sheet_name, index=False)
-
     output.seek(0)
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1172,12 +1176,17 @@ def main():
                                 lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                             )
 
+                            criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
+
                             df_pivot = df_sop_results.pivot_table(
                                 index=[],
                                 columns="Tiêu chí",
                                 values="Trạng thái",
                                 aggfunc='first'
                             ).reset_index(drop=True)
+
+
+                            df_pivot = df_pivot[criteria_order]
 
                             df_pivot.insert(0, "Tên file audio", file_name)
                             df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
@@ -1197,19 +1206,6 @@ def main():
 
                     except Exception as e:
                         st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
-
-
-                if all_results_for_export:
-                    excel_data = export_multiple_sheets(all_results_for_export)
-
-                    st.download_button(
-                        label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                        data=excel_data,
-                        file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                else:
-                    st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
                 cleanup_memory()
 
