@@ -55,14 +55,13 @@ if sys.version_info >= (3, 8):
 
 
 def get_file_hash(file):
-    """Tính hash MD5 cho file để định danh duy nhất"""
     file.seek(0)
     file_bytes = file.read()
     file.seek(0)
     return hashlib.md5(file_bytes).hexdigest()
 
 def transcribe_audio(uploaded_file):
-    """Transcribe audio và lưu cache tránh gọi lại API"""
+
     cache_dir = "transcripts"
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -79,7 +78,7 @@ def transcribe_audio(uploaded_file):
     content_type = mimetypes.guess_type(filename)[0] or 'audio/wav'
 
     transcription = openai.audio.transcriptions.create(
-        model="gpt-4o",
+        model="gpt-4o-transcribe",
         file=(filename, uploaded_file, content_type),
         language="vi"
     )
