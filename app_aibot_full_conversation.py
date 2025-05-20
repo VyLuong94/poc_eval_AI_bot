@@ -349,74 +349,56 @@ def merge_short_sentences(sentences, short_length=3):
     return merged
 
 def analyze_call_transcript(text, min_sentence_length=5):
-
     raw_sentences = re.split(r'(?<=[.!?]) +', text)
     merged_sentences = merge_short_sentences(raw_sentences)
 
+    filtered_sentences = [
+        s.strip() for s in merged_sentences
+        if len(s.split()) >= min_sentence_length and not is_greeting_or_intro(s)
+    ]
 
-    entities_dict = {}
-    total_sentences = 0
+    entities_dict = defaultdict(set)
     cooperative_sentences = 0
     tone_counter = Counter()
     tone_chunks_result = []
 
-    for sentence in merged_sentences:
-        sentence = sentence.strip()
-        if not sentence or len(sentence.split()) < min_sentence_length or is_greeting_or_intro(sentence):
-            continue
-
-        total_sentences += 1
+    for sentence in filtered_sentences:
         try:
             tones = classify_tone(sentence)
         except Exception as e:
-            print(f"Error classifying tone for sentence: {e}")
             tones = [{"text": sentence, "tone": "Error"}]
 
         if isinstance(tones, list):
             for tone in tones:
                 tone_value = tone.get('tone', '') if isinstance(tone, dict) else tone
-                tone_chunks_result.append({
-                    "text": sentence,
-                    "tone": tone_value
-                })
+                tone_chunks_result.append({"text": sentence, "tone": tone_value})
                 tone_counter[tone_value] += 1
                 if tone_value == "Hợp tác":
                     cooperative_sentences += 1
-        elif isinstance(tones, dict):
-            tone_value = tones.get('tone', '')
-            tone_chunks_result.append({
-                "text": sentence,
-                "tone": tone_value
-            })
-            tone_counter[tone_value] += 1
-            if tone_value == "Hợp tác":
-                cooperative_sentences += 1
 
         try:
             ner_results = ner_pipeline(sentence)
             for entity in ner_results:
-                label = entity['entity_group']
-                word = entity['word']
-                entities_dict.setdefault(label, set()).add(word)
-        except Exception as e:
-            print(f"NER error: {e}")
+                entities_dict[entity['entity_group']].add(entity['word'])
+        except:
+            continue
 
     try:
         intent_result = detect_intent(text)
     except:
         intent_result = "Không xác định"
 
-    collaboration_rate = (cooperative_sentences / total_sentences) * 100 if total_sentences > 0 else 0
-
+    total_sentences = len(filtered_sentences)
+    collaboration_rate = (cooperative_sentences / total_sentences) * 100 if total_sentences else 0
 
     interaction_summary = "=== Đánh giá tương tác ===\n"
     if collaboration_rate < 50:
-        interaction_summary += f"Tỷ lệ hợp tác thấp ({collaboration_rate:.2f}%). Cần chú ý các câu sau:\n"
+        interaction_summary += f"Tỷ lệ hợp tác thấp ({collaboration_rate:.2f}%). Câu không hợp tác:\n"
         for i, item in enumerate(tone_chunks_result):
             if item["tone"] == "Không hợp tác":
                 interaction_summary += f"{i+1}. {item['text']}\n"
     else:
-        interaction_summary += f"Tỷ lệ hợp tác cao ({collaboration_rate:.2f}%). Những câu nổi bật:\n"
+        interaction_summary += f"Tỷ lệ hợp tác cao ({collaboration_rate:.2f}%). Câu hợp tác:\n"
         for i, item in enumerate(tone_chunks_result):
             if item["tone"] == "Hợp tác":
                 interaction_summary += f"{i+1}. {item['text']}\n"
@@ -433,6 +415,7 @@ def analyze_call_transcript(text, min_sentence_length=5):
             ]
         }
     }
+
 
 
 @st.cache_resource
@@ -1041,32 +1024,28 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     return eval_result
 
 
-def process_audio_file(file_path_or_obj, file_name=None):
-    try:
-        if isinstance(file_path_or_obj, (str, bytes, os.PathLike)):
-            with open(file_path_or_obj, "rb") as audio_file:
-                transcript = transcribe_audio(audio_file)
-        else:
-            file_path_or_obj.seek(0)
-            transcript = transcribe_audio(file_path_or_obj)
+def transcribe_all_audio(uploaded_audio_file):
+    transcripts_by_file = {}
+    detected_sheets_by_file = {}
 
-        detected_sheet = detect_sheet_from_text(transcript)
+    uploaded_audio_file.seek(0)
+    if uploaded_audio_file.name.endswith(".zip"):
+        with zipfile.ZipFile(uploaded_audio_file) as z:
+            for file_name in z.namelist():
+                if file_name.lower().endswith(".wav"):
+                    with z.open(file_name) as wav_file:
+                        file_like = BytesIO(wav_file.read())
+                        file_like.seek(0)
+                        transcript = transcribe_audio(file_like)
+                        transcripts_by_file[file_name] = transcript
+                        detected_sheets_by_file[file_name] = detect_sheet_from_text(transcript)
 
-        if not file_name:
-            try:
-                file_name = getattr(file_path_or_obj, "name", None)
-                if file_name is None and isinstance(file_path_or_obj, (str, bytes, os.PathLike)):
-                    file_name = os.path.basename(file_path_or_obj)
-                elif file_name is None:
-                    file_name = "unknown"
-            except Exception:
-                file_name = "unknown"
+    elif uploaded_audio_file.name.lower().endswith(".wav"):
+        transcript = transcribe_audio(uploaded_audio_file)
+        transcripts_by_file[uploaded_audio_file.name] = transcript
+        detected_sheets_by_file[uploaded_audio_file.name] = detect_sheet_from_text(transcript)
 
-        return file_name, transcript, detected_sheet
-
-    except Exception as e:
-        print(f"Error processing {file_name or file_path_or_obj}: {e}")
-        return file_name or "unknown", "", ""
+    return transcripts_by_file, detected_sheets_by_file
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
