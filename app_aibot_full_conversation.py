@@ -1204,26 +1204,50 @@ def main():
                     print(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
 
-            if all_results:
-                combined_df = pd.concat([df for df, _, _ in all_results], ignore_index=True)
+            all_results_for_export = []
 
-                sheet_name = "Cuoc_goi_nguoi_than" if combined_df["Tiêu chí"].str.contains("người thân", case=False, na=False).any() else "Cuoc_goi_khach_hang"
+            for df_sop_results, file_name, compliance_rate in all_results:
 
-                excel_data = export_transposed_table_with_filename(
-                    combined_df,
-                    file_name="TONG_HOP_ALL_CALLS",
-                    compliance_rate=None,
-                    sheet_name=sheet_name
+                df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+
+                df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
+                    lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+                )
+                
+
+                df_pivot = df_sop_results.pivot_table(
+                    index=[],  
+                    columns="Tiêu chí",
+                    values="Trạng thái",
+                    aggfunc='first'
                 )
 
-                st.markdown("---")
-                st.download_button(
-                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                    data=excel_data,
-                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="final_excel_button"
-                )
+                df_pivot = df_pivot.reset_index(drop=True)
+
+                df_pivot.insert(0, "Tên file audio", file_name)
+                df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
+
+                suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                df_pivot["Phản hồi gợi ý"] = suggestion
+
+                all_results_for_export.append(df_pivot)
+
+            combined_df = pd.concat(all_results_for_export, ignore_index=True)
+
+
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+                combined_df.to_excel(writer, index=False, sheet_name="Báo cáo tổng hợp")
+            output.seek(0)
+            excel_data = output
+
+            st.download_button(
+                label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                data=excel_data,
+                file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="final_excel_button"
+            )
 
         cleanup_memory()
 
