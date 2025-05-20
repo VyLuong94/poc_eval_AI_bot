@@ -1111,9 +1111,6 @@ def export_transposed_table_with_filename(df, file_name, compliance_rate=None, s
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
-import streamlit as st
-import pandas as pd
-
 def main():
     st.title("Đánh giá Cuộc Gọi - AI Bot")
 
