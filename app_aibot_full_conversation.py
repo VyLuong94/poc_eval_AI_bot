@@ -1086,19 +1086,22 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
 
 
-def export_transposed_table_with_filename(df, file_name, compliance_rate, sheet_name="Sheet1"):
-    df = df[df["Trạng thái"].astype(str).str.strip() != ""]
-
+def export_transposed_table_with_filename(df, file_name, compliance_rate=None, sheet_name="Sheet1"):
     df_display = df.set_index("Tiêu chí")["Trạng thái"].to_frame().T
     df_display.insert(0, "Tên file audio", file_name)
-    df_display["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
+
+    rate_str = f"{compliance_rate:.2f}%" if compliance_rate is not None else "N/A"
+    
+    df_display["__tmp_col__"] = rate_str  
+    cols = [col for col in df_display.columns if col != "__tmp_col__"]
+    df_display = df_display[cols + ["__tmp_col__"]]
+    df_display.rename(columns={"__tmp_col__": "Tỷ lệ tuân thủ tổng thể"}, inplace=True)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_display.to_excel(writer, sheet_name=sheet_name, index=False)
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
