@@ -1063,19 +1063,21 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
                 if file_name.lower().endswith(".wav"):
                     with z.open(file_name) as wav_file:
                         file_like = BytesIO(wav_file.read())
-                        f_name, transcript, detected_sheet = process_audio_file(file_like, file_name)
-                        transcripts_by_file[f_name] = transcript
-                        detected_sheets_by_file[f_name] = detected_sheet
+                        file_like.seek(0)
+                        transcript = transcribe_audio(file_like)
+                        transcripts_by_file[file_name] = transcript
+                        detected_sheets_by_file[file_name] = detect_sheet_from_text(transcript)
 
     elif uploaded_audio_file.name.lower().endswith(".wav"):
-        f_name, transcript, detected_sheet = process_audio_file(uploaded_audio_file, uploaded_audio_file.name)
-        transcripts_by_file[f_name] = transcript
-        detected_sheets_by_file[f_name] = detected_sheet
+        transcript = transcribe_audio(uploaded_audio_file)
+        transcripts_by_file[uploaded_audio_file.name] = transcript
+        detected_sheets_by_file[uploaded_audio_file.name] = detect_sheet_from_text(transcript)
 
     else:
         raise ValueError("Định dạng tệp âm thanh không hợp lệ. Chỉ hỗ trợ .zip hoặc .wav")
 
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
+
 
 
 def export_transposed_table_with_filename(df, file_name, compliance_rate, sheet_name="Sheet1"):
