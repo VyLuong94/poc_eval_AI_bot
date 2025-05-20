@@ -1178,8 +1178,6 @@ def main():
                 for chunk in tone_chunks["important_chunks"]:
                     st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
 
-                st.subheader("Đánh giá mức độ tuân thủ SOP:")
-
                 try:
                     results = evaluate_combined_transcript_and_compliance(
                         transcript,
@@ -1197,6 +1195,20 @@ def main():
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
 
+                        def classify_entire_call(df):
+                            all_criteria = " ".join(df["Tiêu chí"].astype(str).str.lower())
+                            has_family = any(key in all_criteria for key in ["người thân", "quan hệ", "ngthân", "nt", "than nhân"])
+                            has_customer = any(key in all_criteria for key in ["khách hàng", "k/h", "hợp đồng", "khach hang", "hđ"])
+
+                            if has_family:
+                                return "Cuoc_goi_nguoi_than"
+                            elif has_customer:
+                                return "Cuoc_goi_khach_hang"
+                            else:
+                                return "Khong_xac_dinh"
+
+                        call_type = classify_entire_call(df_sop_results)
+
                         criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
 
                         df_pivot = df_sop_results.pivot_table(
@@ -1212,48 +1224,29 @@ def main():
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
                         df_pivot["Phản hồi gợi ý"] = suggestion
 
-                        meta_columns = ["Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
-                        all_columns = df_pivot.columns.tolist()
-                        criteria_columns = [col for col in all_columns if col not in meta_columns and col != "Tên file audio"]
-
-
-                        family_cols = [col for col in criteria_columns if "người thân" in col.lower()]
-                        customer_cols = [col for col in criteria_columns if "người thân" not in col.lower()]
-
-                        if family_cols:
-                            ordered_cols = ["Tên file audio"] + family_cols + meta_columns
-                            df_family = df_pivot[ordered_cols].copy()
-                            df_family = df_family.dropna(subset=family_cols, how='all')
-                            if not df_family.empty:
-                                all_results_for_export.append(("Cuoc_goi_nguoi_than", df_family))
-
-                        if customer_cols:
-                            ordered_cols = ["Tên file audio"] + customer_cols + meta_columns
-                            df_customer = df_pivot[ordered_cols].copy()
-                            df_customer = df_customer.dropna(subset=customer_cols, how='all')
-                            if not df_customer.empty:
-                                all_results_for_export.append(("Cuoc_goi_khach_hang", df_customer))
-
+                        if call_type in ["Cuoc_goi_nguoi_than", "Cuoc_goi_khach_hang"]:
+                            all_results_for_export.append((call_type, df_pivot))
+                        else:
+                            st.warning(f"Không phân loại được loại cuộc gọi cho file: {file_name}")
 
                     else:
                         st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
-                except Exception as e:
-                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                    if all_results_for_export:
+                        excel_data = export_multiple_sheets(all_results_for_export)
+                    else:
+                        excel_data = None
+                        st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
-            if all_results_for_export:
-                excel_data = export_multiple_sheets(all_results_for_export)
-            else:
-                excel_data = None
-                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
-            if excel_data is not None:
-                st.download_button(
-                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                    data=excel_data,
-                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                    if excel_data is not None:
+                        st.download_button(
+                            label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                            data=excel_data,
+                            file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+
 
 
         cleanup_memory()
