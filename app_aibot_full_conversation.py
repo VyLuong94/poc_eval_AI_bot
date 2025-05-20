@@ -1091,12 +1091,11 @@ def export_multiple_sheets(all_results):
         "Cuoc_goi_khach_hang": []
     }
 
-    for df in all_results:
-
-        if df['Tiêu chí'].str.contains('người thân', case=False, na=False).any():
-            group_calls["Cuoc_goi_nguoi_than"].append(df)
+    for sheet_name, df in all_results:
+        if sheet_name in group_calls:
+            group_calls[sheet_name].append(df)
         else:
-            group_calls["Cuoc_goi_khach_hang"].append(df)
+            print(f"Cảnh báo: Sheet name không hợp lệ: {sheet_name}")
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1104,9 +1103,9 @@ def export_multiple_sheets(all_results):
             if dfs:
                 combined = pd.concat(dfs, ignore_index=True)
                 combined.to_excel(writer, sheet_name=sheet_name, index=False)
+
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
