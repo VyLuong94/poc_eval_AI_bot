@@ -204,10 +204,10 @@ def clean_text_sop(text):
     if not isinstance(text, str):
         return ""
 
-    text = re.sub(r'"[^"]*"', '', text)            
-    text = re.sub(r'\([^)]*\)', '', text)         
-    text = re.sub(r'^\s*\d+([\.\-\d]*)[\)\.\-\s]*', '', text)  
-    text = re.sub(r'[;:()\[\]{}"]', '', text) 
+    text = re.sub(r'"[^"]*"', '', text)
+    text = re.sub(r'\([^)]*\)', '', text)
+    text = re.sub(r'^\s*\d+([\.\-\d]*)[\)\.\-\s]*', '', text)
+    text = re.sub(r'[;:()\[\]{}"]', '', text)
     text = ' '.join(text.split())
     text = text.replace('\xa0', ' ').strip()
     if not text or re.fullmatch(r'\d+|[^\w\s]+', text):
@@ -248,8 +248,6 @@ def is_greeting_or_intro(sentence):
     sentence_lower = sentence.lower()
     return any(kw in sentence_lower for kw in IGNORE_KEYWORDS)
 
-
-# clean agent_text
 
 def split_transcript_into_sentences(text):
 
@@ -901,7 +899,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
 
 def format_sop_results(sop_results, expected_keys=None):
     """
-    Format lại danh sách kết quả compliance: 
+    Format lại danh sách kết quả compliance:
     - Đảm bảo đủ keys, chuẩn hóa kiểu dữ liệu
     """
     if expected_keys is None:
@@ -1003,7 +1001,7 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
                 sop_violations = split_violation_text(raw_text)
 
         eval_result["sop_compliance_results"] = sop_results
-        eval_result["compliance_rate"] = sop_rate 
+        eval_result["compliance_rate"] = sop_rate
         eval_result["violations"] = sop_violations
 
     except Exception as e:
@@ -1074,7 +1072,7 @@ def process_audio_file(file_path_or_obj, file_name=None):
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
-    uploaded_excel_file.seek(0) 
+    uploaded_excel_file.seek(0)
     qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
 
     transcripts_by_file = {}
@@ -1102,15 +1100,24 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
-def export_transposed_table_with_filename(df, file_name, sheet_name="Sheet1"):
-    df_pivoted = df.pivot_table(index="Tiêu chí", values="Trạng thái", aggfunc="first").T
-    df_pivoted.insert(0, "Tên file audio", file_name)
+
+def export_transposed_table_with_filename(df, file_name, compliance_rate, sheet_name="Sheet1"):
+    df = df[df["Trạng thái"].astype(str).str.strip() != ""]
+
+    df["Trạng thái"] = df["Trạng thái"].apply(
+        lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+    )
+
+    df_display = df.set_index("Tiêu chí")["Trạng thái"].to_frame().T
+    df_display.insert(0, "Tên file audio", file_name)
+    df_display["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df_pivoted.to_excel(writer, sheet_name=sheet_name, index=False)
+        df_display.to_excel(writer, sheet_name=sheet_name, index=False)
     output.seek(0)
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1166,6 +1173,8 @@ def main():
                             method="rag",
                             threshold=0.6
                         )
+                        st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                        st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
                         sop_results = results.get('sop_compliance_results', [])
                         if sop_results:
@@ -1179,6 +1188,7 @@ def main():
 
                             df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
                             df_display.insert(0, "Tên file audio", file_name)
+                            df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
                             st.table(df_display)
 
                             if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
