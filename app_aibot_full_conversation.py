@@ -1199,7 +1199,6 @@ def main():
                             all_criteria = " ".join(df["Tiêu chí"].astype(str).str.lower())
                             has_family = any(key in all_criteria for key in ["người thân", "quan hệ", "ngthân", "nt", "than nhân"])
                             has_customer = any(key in all_criteria for key in ["khách hàng", "k/h", "hợp đồng", "khach hang", "hđ"])
-
                             if has_family:
                                 return "Cuoc_goi_nguoi_than"
                             elif has_customer:
@@ -1232,22 +1231,23 @@ def main():
                     else:
                         st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
-                    if all_results_for_export:
-                        excel_data = export_multiple_sheets(all_results_for_export)
-                    else:
-                        excel_data = None
-                        st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+                except Exception as e:
+                    st.error(f"Lỗi khi đánh giá tuân thủ: {e}")
 
 
-                    if excel_data is not None:
-                        st.download_button(
-                            label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                            data=excel_data,
-                            file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+            if all_results_for_export:
+                excel_data = export_multiple_sheets(all_results_for_export)
+            else:
+                excel_data = None
+                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
-
+            if excel_data is not None:
+                st.download_button(
+                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                    data=excel_data,
+                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
         cleanup_memory()
 
