@@ -1191,7 +1191,7 @@ def main():
 
                         # st.subheader("Phản hồi gợi ý:")
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                        st.write(suggestion)
+                        # st.write(suggestion)
                         df_sop_results["Phản hồi gợi ý"] = suggestion
 
                         all_results.append((df_sop_results, file_name, results['compliance_rate']))
