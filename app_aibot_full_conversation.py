@@ -1193,9 +1193,9 @@ def main():
                             st.table(df_display)
 
                             if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
-                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, sheet_name="Cuoc_goi_nguoi_than")
+                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate, sheet_name="Cuoc_goi_nguoi_than")
                             else:
-                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, sheet_name="Cuoc_goi_khach_hang")
+                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate, sheet_name="Cuoc_goi_khach_hang")
 
                             st.download_button(
                                 label="Tải báo cáo tổng hợp (Excel)",
