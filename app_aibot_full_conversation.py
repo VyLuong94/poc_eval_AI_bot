@@ -1105,101 +1105,109 @@ st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
-    uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav) ", type=["zip","wav"])
+    uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav)", type=["zip", "wav"])
 
     if uploaded_excel_file and uploaded_audio_file:
         st.success("Tải tệp thành công!")
 
         if st.button("Đánh giá"):
+            try:
+                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                    uploaded_excel_file, uploaded_audio_file
+                )
+            except Exception as e:
+                st.error(f"Lỗi khi xử lý tệp: {e}")
+                return
+
+            all_results = []
+
+            for file_name, transcript in transcripts_by_file.items():
+                st.subheader(f"Tệp âm thanh: {file_name}")
+                st.write(transcript)
+
+                analysis_result = analyze_call_transcript(transcript)
+                tone_chunks = analysis_result["tone_chunks"]
+                customer_label = classify_tone(transcript, chunk_size=None)
+
+                st.subheader("Kết quả phân tích:")
+                st.write(f"Cảm xúc của khách hàng: {customer_label}")
+                st.write(f"Thực thể được nhận diện: {analysis_result['named_entities']}")
+                st.write(f"Ý định của khách hàng: {analysis_result['intent']}")
+                st.write(f"Tỷ lệ hợp tác: {analysis_result['collaboration_rate']}%")
+                st.text(analysis_result["interaction_summary"])
+
+                st.header("Tổng hợp cảm xúc trong câu của khách hàng")
+                for tone, count in tone_chunks["tone_summary"].items():
+                    st.write(f"- {tone}: {count} câu")
+
+                st.subheader("Các đoạn nổi bật:")
+                for chunk in tone_chunks["important_chunks"]:
+                    st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
+
+                st.subheader("Đánh giá mức độ tuân thủ SOP:")
                 try:
-                    qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
-                        uploaded_excel_file, uploaded_audio_file
+                    results = evaluate_combined_transcript_and_compliance(
+                        transcript,
+                        uploaded_excel_file,
+                        method="rag",
+                        threshold=0.6
                     )
 
-                except Exception as e:
-                    st.error(f"Lỗi khi xử lý tệp: {e}")
-                    return
+                    st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                    st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
-                st.subheader("Văn bản thu được từ các tệp âm thanh:")
-                for file_name, transcript in transcripts_by_file.items():
-                    st.write(f"**Tệp âm thanh**: {file_name}")
-                    st.write(transcript)
+                    sop_results = results.get('sop_compliance_results', [])
+                    if sop_results:
+                        df_sop_results = pd.DataFrame(sop_results)
+                        df_sop_results["Tên file audio"] = file_name
+                        df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
 
-                    analysis_result = analyze_call_transcript(transcript)
-                    tone_chunks = analysis_result["tone_chunks"]
-                    customer_label = classify_tone(transcript, chunk_size=None)
-
-                    st.subheader("Kết quả phân tích:")
-                    st.write(f"Cảm xúc của khách hàng: {customer_label}")
-                    st.write(f"Thực thể được nhận diện: {analysis_result['named_entities']}")
-                    st.write(f"Ý định của khách hàng: {analysis_result['intent']}")
-                    st.write(f"Tỷ lệ hợp tác: {analysis_result['collaboration_rate']}%")
-                    st.text(analysis_result["interaction_summary"])
-
-                    st.header("Tổng hợp cảm xúc trong câu của khách hàng")
-                    for tone, count in tone_chunks["tone_summary"].items():
-                        st.write(f"- {tone}: {count} câu")
-
-                    st.subheader("Các đoạn nổi bật:")
-                    for chunk in tone_chunks["important_chunks"]:
-                        st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
-
-
-                    st.subheader("Đánh giá mức độ tuân thủ SOP:")
-                    try:
-                        results = evaluate_combined_transcript_and_compliance(
-                            transcript,
-                            uploaded_excel_file,
-                            method="rag",
-                            threshold=0.6
+                        df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
+                            lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
-                        st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                        st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
-                        st.subheader("Chi tiết từng tiêu chí:")
-                        sop_results = results.get('sop_compliance_results', [])
-                        if sop_results:
-                            df_sop_results = pd.DataFrame(sop_results)
-                            df_sop_results["Tên file audio"] = file_name
+                        df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
+                        df_display.insert(0, "Tên file audio", file_name)
+                        df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
+                        st.table(df_display)
 
-                            df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
-                            df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
-                                lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
-                            )
-
-                            df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
-                            df_display.insert(0, "Tên file audio", file_name)
-                            df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
-                            st.table(df_display)
-
-
-                            if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
-                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate=results['compliance_rate'], sheet_name="Cuoc_goi_nguoi_than")
-                            else:
-                                excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate=results['compliance_rate'], sheet_name="Cuoc_goi_khach_hang")
-
-                            df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
-                            if not df_violations.empty:
-                                df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
-                                st.subheader("Các tiêu chí chưa tuân thủ:")
-                                st.table(df_violations)
-                            else:
-                                st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
-
-                            st.download_button(
-                                label="Tải báo cáo tổng hợp (Excel)",
-                                data=excel_data,
-                                file_name="AI_QA_REPORT_GRACE.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key="final_download_button"
-                            )
-
+                        df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
+                        if not df_violations.empty:
+                            df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
+                            st.subheader("Các tiêu chí chưa tuân thủ:")
+                            st.table(df_violations)
                         else:
-                            st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                            st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                    except Exception as e:
-                        st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                        all_results.append((df_sop_results, file_name, results['compliance_rate']))
 
+                    else:
+                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+
+                except Exception as e:
+                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+
+
+            if all_results:
+                combined_df = pd.concat([df for df, _, _ in all_results], ignore_index=True)
+
+                sheet_name = "Cuoc_goi_nguoi_than" if combined_df["Tiêu chí"].str.contains("người thân", case=False, na=False).any() else "Cuoc_goi_khach_hang"
+
+                excel_data = export_transposed_table_with_filename(
+                    combined_df,
+                    file_name="TONG_HOP_ALL_CALLS",
+                    compliance_rate=None,
+                    sheet_name=sheet_name
+                )
+
+                st.markdown("---")
+                st.download_button(
+                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                    data=excel_data,
+                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="final_excel_button"
+                )
 
 
 
