@@ -41,6 +41,7 @@ import asyncio
 import sys
 import concurrent.futures
 import nest_asyncio
+import mimetypes
 from collections import defaultdict, Counter
 from unidecode import unidecode
 nest_asyncio.apply()
