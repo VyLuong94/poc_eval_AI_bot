@@ -1152,74 +1152,76 @@ def main():
                     st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
 
                 st.subheader("Đánh giá mức độ tuân thủ SOP:")
-                all_results_for_export = []
 
-                for file_name, transcript in transcripts_by_file.items():
-                    try:
-                        results = evaluate_combined_transcript_and_compliance(
-                            transcript,
-                            uploaded_excel_file,
-                            method="rag",
-                            threshold=0.6
-                        )
-                        compliance_rate = results.get('compliance_rate', 0.0)
-                        st.subheader("Tỷ lệ tuân thủ tổng thể:")
-                        st.markdown(f"- **{compliance_rate:.2f}%**")
-
-                        sop_results = results.get('sop_compliance_results', [])
-
-                        if sop_results:
-                            df_sop_results = pd.DataFrame(sop_results)
-                            df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
-                            df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
-                                lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
-                            )
-
-                            criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
-
-                            df_pivot = df_sop_results.pivot_table(
-                                index=[],
-                                columns="Tiêu chí",
-                                values="Trạng thái",
-                                aggfunc='first'
-                            ).reset_index(drop=True)
-
-
-                            df_pivot = df_pivot[criteria_order]
-
-                            df_pivot.insert(0, "Tên file audio", file_name)
-                            df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
-
-                            suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                            df_pivot["Phản hồi gợi ý"] = suggestion
-
-                            is_family_call = df_sop_results["Tiêu chí"].str.lower().str.contains("người thân").any()
-
-                            if is_family_call:
-                                all_results_for_export.append(("Cuoc_goi_nguoi_than", df_pivot))
-                            else:
-                                all_results_for_export.append(("Cuoc_goi_khach_hang", df_pivot))
-
-                        else:
-                            st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
-
-                    except Exception as e:
-                        st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
-
-                if all_results_for_export:
-                    excel_data = export_multiple_sheets(all_results_for_export)
-                else:
-                    excel_data = None
-                    st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
-
-
-                if excel_data is not None:
-                    st.download_button(
-                        label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                        data=excel_data,
-                        file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                try:
+                    results = evaluate_combined_transcript_and_compliance(
+                        transcript,
+                        uploaded_excel_file,
+                        method="rag",
+                        threshold=0.6
                     )
+                    compliance_rate = results.get('compliance_rate', 0.0)
+                    sop_results = results.get('sop_compliance_results', [])
+
+                    if sop_results:
+                        df_sop_results = pd.DataFrame(sop_results)
+                        df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+                        df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
+                            lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
+                        )
+
+                        criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
+
+                        df_pivot = df_sop_results.pivot_table(
+                            index=[],
+                            columns="Tiêu chí",
+                            values="Trạng thái",
+                            aggfunc='first'
+                        ).reset_index(drop=True)
+
+                        df_pivot = df_pivot[criteria_order]
+                        df_pivot.insert(0, "Tên file audio", file_name)
+                        df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
+                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                        df_pivot["Phản hồi gợi ý"] = suggestion
+
+                        meta_columns = ["Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
+                        all_columns = df_pivot.columns.tolist()
+                        criteria_columns = [col for col in all_columns if col not in meta_columns and col != "Tên file audio"]
+
+
+                        family_cols = [col for col in criteria_columns if "người thân" in col.lower()]
+                        customer_cols = [col for col in criteria_columns if "người thân" not in col.lower()]
+
+                        if family_cols:
+                            ordered_cols = ["Tên file audio"] + family_cols + meta_columns
+                            df_family = df_pivot[ordered_cols]
+                            all_results_for_export.append(("Cuoc_goi_nguoi_than", df_family))
+
+                        if customer_cols:
+                            ordered_cols = ["Tên file audio"] + customer_cols + meta_columns
+                            df_customer = df_pivot[ordered_cols]
+                            all_results_for_export.append(("Cuoc_goi_khach_hang", df_customer))
+
+                    else:
+                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+
+                except Exception as e:
+                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+
+            if all_results_for_export:
+                excel_data = export_multiple_sheets(all_results_for_export)
+            else:
+                excel_data = None
+                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+
+            if excel_data is not None:
+                st.download_button(
+                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                    data=excel_data,
+                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
 
         cleanup_memory()
