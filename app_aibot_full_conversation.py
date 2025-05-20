@@ -1130,7 +1130,6 @@ def main():
         st.success("Tải tệp thành công!")
 
         if st.button("Đánh giá"):
-            with st.spinner("Đang xử lý..."):
                 try:
                     qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
                         uploaded_excel_file, uploaded_audio_file
