@@ -1226,17 +1226,17 @@ def main():
                 df_pivot["Phản hồi gợi ý"] = suggestion
 
 
-        if all_results_for_export:
-            excel_data = export_multiple_sheets(all_results_for_export)
+            if all_results_for_export:
+                excel_data = export_multiple_sheets(all_results_for_export)
 
-            st.download_button(
-                label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                data=excel_data,
-                file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        else:
-            st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+                st.download_button(
+                    label="Tải báo cáo tổng hợp tất cả cuộc gọi",
+                    data=excel_data,
+                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
 
 
         cleanup_memory()
