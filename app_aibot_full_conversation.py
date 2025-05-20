@@ -1085,29 +1085,26 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
+def export_multiple_sheets(all_results):
+    group_calls = {
+        "Cuoc_goi_nguoi_than": [],
+        "Cuoc_goi_khach_hang": []
+    }
 
-def export_transposed_table_with_filename(df, file_name, compliance_rate=None, sheet_name="Sheet1"):
-    df_display = df.set_index("Tiêu chí")["Trạng thái"].to_frame().T
-
-    meta_cols = ["Tên file audio", "Phản hồi gợi ý"]
-    for col in meta_cols:
-        if col in df.columns:
-            df_display[col] = df[col].iloc[0]
-
-    rate_str = f"{compliance_rate:.2f}%" if compliance_rate is not None else "N/A"
-    df_display["Tỷ lệ tuân thủ tổng thể"] = rate_str
-
-    meta_order = ["Tên file audio"]
-    last_meta = ["Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
-    other_cols = [col for col in df_display.columns if col not in meta_order + last_meta]
-    df_display = df_display[meta_order + other_cols + last_meta]
+    for df in all_results:
+        if any("người thân" in col.lower() for col in df.columns):
+            group_calls["Cuoc_goi_nguoi_than"].append(df)
+        else:
+            group_calls["Cuoc_goi_khach_hang"].append(df)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df_display.to_excel(writer, sheet_name=sheet_name, index=False)
+        for sheet_name, dfs in group_calls.items():
+            if dfs:
+                combined = pd.concat(dfs, ignore_index=True)
+                combined.to_excel(writer, sheet_name=sheet_name, index=False)
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1167,6 +1164,7 @@ def main():
                     st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
                     sop_results = results.get('sop_compliance_results', [])
+
                     if sop_results:
                         df_sop_results = pd.DataFrame(sop_results)
                         df_sop_results["Tên file audio"] = file_name
@@ -1176,32 +1174,29 @@ def main():
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
 
-                        # df_display = df_sop_results.set_index("Tiêu chí")["Trạng thái"].to_frame().T
-                        # df_display.insert(0, "Tên file audio", file_name)
-                        # df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
-                        # st.table(df_display)
-
-                        # df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
-                        # if not df_violations.empty:
-                        #     df_violations = df_violations[["Tiêu chí", "Trạng thái", "Tên file audio"]].reset_index(drop=True)
-                        #     st.subheader("Các tiêu chí chưa tuân thủ:")
-                        #     st.table(df_violations)
-                        # else:
-                        #     st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
-
-                        # st.subheader("Phản hồi gợi ý:")
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                        # st.write(suggestion)
-                        df_sop_results["Phản hồi gợi ý"] = suggestion
 
-                        all_results.append((df_sop_results, file_name, results['compliance_rate']))
+                        df_pivot = df_sop_results.pivot_table(
+                            index=[],  
+                            columns="Tiêu chí",
+                            values="Trạng thái",
+                            aggfunc='first'
+                        ).reset_index(drop=True)
+
+                        df_pivot.insert(0, "Tên file audio", file_name)
+                        df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
+                        df_pivot["Phản hồi gợi ý"] = suggestion
+
+                        all_results_for_export.append(df_pivot)
+
+                        st.subheader("Tỷ lệ tuân thủ tổng thể:")
+                        st.markdown(f"- **{compliance_rate:.2f}%**")
+
                     else:
-                        # st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
-                        pass
+                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
                 except Exception as e:
-                    # st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
-                    print(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+                    st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
 
 
             all_results_for_export = []
@@ -1230,24 +1225,19 @@ def main():
                 suggestion = suggest_response(transcript, customer_label, use_llm=True)
                 df_pivot["Phản hồi gợi ý"] = suggestion
 
-                all_results_for_export.append(df_pivot)
 
-            combined_df = pd.concat(all_results_for_export, ignore_index=True)
-
-
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-                combined_df.to_excel(writer, index=False, sheet_name="Báo cáo tổng hợp")
-            output.seek(0)
-            excel_data = output
+        if all_results_for_export:
+            excel_data = export_multiple_sheets(all_results_for_export)
 
             st.download_button(
                 label="Tải báo cáo tổng hợp tất cả cuộc gọi",
                 data=excel_data,
                 file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="final_excel_button"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+        else:
+            st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+
 
         cleanup_memory()
 
