@@ -922,8 +922,6 @@ def format_sop_results(sop_results, expected_keys=None):
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
-    import io
-    from sentence_transformers import SentenceTransformer
 
     if model is None:
         model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -1103,10 +1101,6 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
 def export_transposed_table_with_filename(df, file_name, compliance_rate, sheet_name="Sheet1"):
     df = df[df["Trạng thái"].astype(str).str.strip() != ""]
-
-    df["Trạng thái"] = df["Trạng thái"].apply(
-        lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
-    )
 
     df_display = df.set_index("Tiêu chí")["Trạng thái"].to_frame().T
     df_display.insert(0, "Tên file audio", file_name)
