@@ -1088,14 +1088,18 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
 
 def export_transposed_table_with_filename(df, file_name, compliance_rate=None, sheet_name="Sheet1"):
     df_display = df.set_index("Tiêu chí")["Trạng thái"].to_frame().T
-    df_display.insert(0, "Tên file audio", file_name)
+
+    meta_cols = ["Tên file audio", "Phản hồi gợi ý"]
+    for col in meta_cols:
+        if col in df.columns:
+            df_display[col] = df[col].iloc[0]  
 
     rate_str = f"{compliance_rate:.2f}%" if compliance_rate is not None else "N/A"
-    
-    df_display["__tmp_col__"] = rate_str  
-    cols = [col for col in df_display.columns if col != "__tmp_col__"]
-    df_display = df_display[cols + ["__tmp_col__"]]
-    df_display.rename(columns={"__tmp_col__": "Tỷ lệ tuân thủ tổng thể"}, inplace=True)
+    df_display["Tỷ lệ tuân thủ tổng thể"] = rate_str
+
+    meta_order = ["Tên file audio", "Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
+    other_cols = [col for col in df_display.columns if col not in meta_order]
+    df_display = df_display[meta_order + other_cols]
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1104,9 +1108,15 @@ def export_transposed_table_with_filename(df, file_name, compliance_rate=None, s
     return output
 
 
+
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
+import streamlit as st
+import pandas as pd
+
 def main():
+    st.title("Đánh giá Cuộc Gọi - AI Bot")
+
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav)", type=["zip", "wav"])
 
@@ -1182,8 +1192,12 @@ def main():
                         else:
                             st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
 
-                        all_results.append((df_sop_results, file_name, results['compliance_rate']))
+                        st.subheader("Phản hồi gợi ý:")
+                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                        st.write(suggestion)
+                        df_display["Phản hồi gợi ý"] = suggestion
 
+                        all_results.append((df_sop_results, file_name, results['compliance_rate']))
                     else:
                         st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
@@ -1212,6 +1226,7 @@ def main():
                     key="final_excel_button"
                 )
 
+        cleanup_memory()
 
 
 if __name__ == "__main__":
