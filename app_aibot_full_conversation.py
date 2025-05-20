@@ -1156,7 +1156,6 @@ def main():
                         st.subheader("Tỷ lệ tuân thủ tổng thể:")
                         st.markdown(f"- **{results['compliance_rate']:.2f}%**")
 
-
                         st.subheader("Chi tiết từng tiêu chí:")
                         sop_results = results.get('sop_compliance_results', [])
                         if sop_results:
@@ -1173,18 +1172,11 @@ def main():
                             df_display["Tỷ lệ tuân thủ tổng thể"] = f"{results['compliance_rate']:.2f}%"
                             st.table(df_display)
 
+
                             if df_sop_results["Tiêu chí"].str.contains("người thân", case=False, na=False).any():
                                 excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate=results['compliance_rate'], sheet_name="Cuoc_goi_nguoi_than")
                             else:
                                 excel_data = export_transposed_table_with_filename(df_sop_results, file_name, compliance_rate=results['compliance_rate'], sheet_name="Cuoc_goi_khach_hang")
-
-                            st.download_button(
-                                label="Tải báo cáo tổng hợp (Excel)",
-                                data=excel_data,
-                                file_name="AI_QA_REPORT_GRACE.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key="download_excel_report" 
-                            )
 
                             df_violations = df_sop_results[df_sop_results["Trạng thái"] == "N"]
                             if not df_violations.empty:
@@ -1193,11 +1185,21 @@ def main():
                                 st.table(df_violations)
                             else:
                                 st.success("Nhân viên đã tuân thủ đầy đủ các tiêu chí SOP!")
+
+                            st.download_button(
+                                label="Tải báo cáo tổng hợp (Excel)",
+                                data=excel_data,
+                                file_name="AI_QA_REPORT_GRACE.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key="final_download_button"
+                            )
+
                         else:
                             st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
                     except Exception as e:
                         st.error(f"Đã xảy ra lỗi khi đánh giá tuân thủ SOP: {e}")
+
 
 
 
