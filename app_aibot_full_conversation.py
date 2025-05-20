@@ -58,7 +58,7 @@ def transcribe_audio(uploaded_file):
     content_type = mimetypes.guess_type(filename)[0] or 'audio/wav'
 
     transcription = openai.audio.transcriptions.create(
-        model="gpt-4o",
+        model="gpt-4o-transcribe",
         file=(filename, uploaded_file, content_type),
         language="vi"
     )
