@@ -1092,14 +1092,15 @@ def export_transposed_table_with_filename(df, file_name, compliance_rate=None, s
     meta_cols = ["Tên file audio", "Phản hồi gợi ý"]
     for col in meta_cols:
         if col in df.columns:
-            df_display[col] = df[col].iloc[0]  
+            df_display[col] = df[col].iloc[0]
 
     rate_str = f"{compliance_rate:.2f}%" if compliance_rate is not None else "N/A"
     df_display["Tỷ lệ tuân thủ tổng thể"] = rate_str
 
-    meta_order = ["Tên file audio", "Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
-    other_cols = [col for col in df_display.columns if col not in meta_order]
-    df_display = df_display[meta_order + other_cols]
+    meta_order = ["Tên file audio"]
+    last_meta = ["Tỷ lệ tuân thủ tổng thể", "Phản hồi gợi ý"]
+    other_cols = [col for col in df_display.columns if col not in meta_order + last_meta]
+    df_display = df_display[meta_order + other_cols + last_meta]
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
