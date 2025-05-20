@@ -1113,7 +1113,6 @@ def export_transposed_table_with_filename(df, file_name, compliance_rate=None, s
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
-    st.title("Đánh giá Cuộc Gọi - AI Bot")
 
     uploaded_excel_file = st.file_uploader("Tải lên tệp Excel", type="xlsx")
     uploaded_audio_file = st.file_uploader("Tải lên tệp âm thanh (.zip hoặc .wav)", type=["zip", "wav"])
