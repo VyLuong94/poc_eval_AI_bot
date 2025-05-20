@@ -12,6 +12,7 @@ import tempfile
 import os
 import re
 import json
+import hashlib
 from collections import Counter
 import openai
 import httpx
@@ -52,17 +53,44 @@ if sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
+
+def get_file_hash(file):
+    """Tính hash MD5 cho file để định danh duy nhất"""
+    file.seek(0)
+    file_bytes = file.read()
+    file.seek(0)
+    return hashlib.md5(file_bytes).hexdigest()
+
 def transcribe_audio(uploaded_file):
+    """Transcribe audio và lưu cache tránh gọi lại API"""
+    cache_dir = "transcripts"
+    os.makedirs(cache_dir, exist_ok=True)
+
+    file_hash = get_file_hash(uploaded_file)
+    cache_path = os.path.join(cache_dir, f"{file_hash}.json")
+
+    if os.path.exists(cache_path):
+        with open(cache_path, "r", encoding="utf-8") as f:
+            cached_data = json.load(f)
+            return cached_data["text"]
+
     uploaded_file.seek(0)
     filename = getattr(uploaded_file, 'name', 'audio.wav')
     content_type = mimetypes.guess_type(filename)[0] or 'audio/wav'
 
     transcription = openai.audio.transcriptions.create(
-        model="gpt-4o-transcribe",
+        model="gpt-4o",
         file=(filename, uploaded_file, content_type),
         language="vi"
     )
+
+
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump({"text": transcription.text}, f, ensure_ascii=False, indent=2)
+
     return transcription.text
+
+
 
 def clean_text(text):
     text = text.lower()
@@ -1195,13 +1223,18 @@ def main():
 
                         if family_cols:
                             ordered_cols = ["Tên file audio"] + family_cols + meta_columns
-                            df_family = df_pivot[ordered_cols]
-                            all_results_for_export.append(("Cuoc_goi_nguoi_than", df_family))
+                            df_family = df_pivot[ordered_cols].copy()
+                            df_family = df_family.dropna(subset=family_cols, how='all')
+                            if not df_family.empty:
+                                all_results_for_export.append(("Cuoc_goi_nguoi_than", df_family))
 
                         if customer_cols:
                             ordered_cols = ["Tên file audio"] + customer_cols + meta_columns
-                            df_customer = df_pivot[ordered_cols]
-                            all_results_for_export.append(("Cuoc_goi_khach_hang", df_customer))
+                            df_customer = df_pivot[ordered_cols].copy()
+                            df_customer = df_customer.dropna(subset=customer_cols, how='all')
+                            if not df_customer.empty:
+                                all_results_for_export.append(("Cuoc_goi_khach_hang", df_customer))
+
 
                     else:
                         st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
