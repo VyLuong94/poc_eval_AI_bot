@@ -1300,7 +1300,7 @@ def main():
             df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
             df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
-            excel_file = export_combined_sheet([df_kh_all], [df_nt_all])
+            excel_file = export_combined_sheet(df_kh_all, df_nt_all)
 
             st.download_button(
                     label="Tải báo cáo tổng hợp tất cả cuộc gọi",
