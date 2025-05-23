@@ -1133,6 +1133,29 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
+def process_files_from_zip_transcripts(uploaded_excel_file, uploaded_zip_file):
+    uploaded_excel_file.seek(0)
+    qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
+
+    transcripts_by_file = {}
+    detected_sheets_by_file = {}
+
+    uploaded_zip_file.seek(0)
+
+    if uploaded_zip_file.name.endswith(".zip"):
+        with zipfile.ZipFile(uploaded_zip_file) as z:
+            for file_name in z.namelist():
+                if file_name.lower().endswith(".txt"):
+                    with z.open(file_name) as txt_file:
+                        transcript = txt_file.read().decode("utf-8")
+                        transcripts_by_file[file_name] = transcript
+                        detected_sheets_by_file[file_name] = detect_sheet_from_text(transcript)
+    else:
+        raise ValueError("Tệp không phải .zip chứa transcript dạng .txt")
+
+    return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
+
+
 def export_combined_sheet(df_kh_all, df_nt_all):
     if not df_kh_all and not df_nt_all:
         return None
@@ -1162,7 +1185,7 @@ def main():
 
         if st.button("Đánh giá"):
             try:
-                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files_from_zip_transcripts(
                     uploaded_excel_file, uploaded_audio_file
                 )
             except Exception as e:
@@ -1247,33 +1270,40 @@ def main():
                         df_info = pd.DataFrame([metadata])  
                         df_final = pd.concat([df_info, df_pivot], axis=1)
 
-                        ordered_columns = (
-                            ["Tên file audio", "Loại cuộc gọi"]
-                            + criteria_order
-                            + [
-                                "Tỷ lệ tuân thủ tổng thể",
-                                "Chi tiết lỗi đánh giá - đơn vị",
-                                "Tỷ lệ phản hồi tích cực của KH",
-                                "Ghi chú - đơn vị",
-                                "Phản hồi gợi ý"
-                            ]
-                        )
+                        df_criteria_full = pd.DataFrame(columns=criteria_order)
+                        for crit in criteria_order:
+                            if crit in df_final.columns:
+                                df_criteria_full[crit] = df_final[crit]
+                            else:
+                                df_criteria_full[crit] = ""
 
-                        for col in ordered_columns:
-                            if col not in df_final.columns:
-                                df_final[col] = ""
+                        meta_cols = [
+                            "Loại cuộc gọi",
+                            "Tỷ lệ tuân thủ tổng thể",
+                            "Chi tiết lỗi đánh giá - đơn vị",
+                            "Tỷ lệ phản hồi tích cực của KH",
+                            "Ghi chú - đơn vị",
+                            "Phản hồi gợi ý"
+                        ]
+                        df_meta = df_final[meta_cols]
 
-                        df_final = df_final[ordered_columns]
+                        df_concat = pd.concat([df_criteria_full, df_meta], axis=1)
 
-                        df_all.append(df_final)
+                        df_concat["Tên file audio"] = file_name
+                        df_concat["Loại cuộc gọi"] = call_type
 
-                    else:
-                        st.warning(f"Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí cho file: {file_name}")
+                        df_all.append(df_concat)
                 except Exception as e:
                         st.error(f"Lỗi khi đánh giá compliance: {e}")
 
-            df_kh_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "KH"]
-            df_nt_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "NT"]
+            df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
+
+            cols_order = ["Tên file audio", "Loại cuộc gọi"] + df_criteria_full + meta_cols[1:]
+            df_all_concat = df_all_concat[cols_order]
+
+            df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
+            df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
+
             excel_file = export_combined_sheet(df_kh_all, df_nt_all)
 
             st.download_button(
