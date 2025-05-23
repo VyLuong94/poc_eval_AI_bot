@@ -1236,7 +1236,7 @@ def main():
                         df_pivot.insert(0, "Tên file audio", file_name)
                         df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
                         df_pivot["Chi tiết lỗi đánh giá - đơn vị"] = sop_violations
-                        df_pivot["Tỷ lệ phản hồi tích cực của KH"] = {analysis_result['collaboration_rate']}%
+                        df_pivot["Tỷ lệ phản hồi tích cực của KH"] = f"{analysis_result['collaboration_rate']}%"
                         df_pivot["Ghi chú - đơn vị"] = note_text
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
