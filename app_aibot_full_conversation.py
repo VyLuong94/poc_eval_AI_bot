@@ -1298,7 +1298,7 @@ def main():
 
             df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
-            cols_order = ["Tên file audio", "Loại cuộc gọi"] + df_criteria_full + meta_cols[1:]
+            cols_order = ["Tên file audio", "Loại cuộc gọi"] + df_criteria_full.columns.tolist() + meta_cols[1:]
             df_all_concat = df_all_concat[cols_order]
 
             df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
