@@ -1215,7 +1215,7 @@ def main():
                         df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
-                        sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip().lower()
+                        sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip()
                         if "NT" in sheet_name_detected:
                             call_type = "NT"
                         elif "KH" in sheet_name_detected:
