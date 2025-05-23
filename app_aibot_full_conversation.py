@@ -53,7 +53,6 @@ if sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
-
 def get_file_hash(file):
     file.seek(0)
     file_bytes = file.read()
@@ -80,7 +79,8 @@ def transcribe_audio(uploaded_file):
     transcription = openai.audio.transcriptions.create(
         model="gpt-4o-transcribe",
         file=(filename, uploaded_file, content_type),
-        language="vi"
+        language="vi",
+        temperature=0
     )
 
 
@@ -88,7 +88,6 @@ def transcribe_audio(uploaded_file):
         json.dump({"text": transcription.text}, f, ensure_ascii=False, indent=2)
 
     return transcription.text
-
 
 
 def clean_text(text):
@@ -200,10 +199,12 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
                 formatted_lines.append('\n' + line)
             else:
                 formatted_lines.append(line)
-        return ' '.join(formatted_lines).replace('\n ', '\n').strip()
+        return ' '.join(formatted_lines).strip()
+
 
     for _, row in df.iterrows():
         code = str(row['Mã tiêu chí']).strip().rstrip('.')
+
         if not re.match(r'^\d+(\.\d+)*$', code):
             current_section = {
                 "section": clean_text_sop(row['Tên tiêu chí đánh giá']),
@@ -213,56 +214,58 @@ def extract_sop_items_from_excel(file_path, sheet_name=0):
             continue
 
         title = clean_text_sop(row['Tên tiêu chí đánh giá'])
-        instruction = format_instruction(clean_text_sop(row['Hướng dẫn thực hiện']))
+        raw_instruction = format_instruction(row['Hướng dẫn thực hiện'])
+        instruction_lines = [
+            clean_text_sop(line.strip())
+            for line in raw_instruction.split('\n')
+            if clean_text_sop(line.strip())
+        ]
+
+        filtered_instructions = [line for line in instruction_lines if line != title]
+
         if not title:
             continue
 
-        description = "\n".join(filter(None, [title, instruction]))
+        description = "\n".join(filtered_instructions) if filtered_instructions else title
         score = int(float(row['Điểm'])) if pd.notnull(row['Điểm']) else 0
 
-        if current_section:
-            current_section["items"].append({
-                "code": code,
-                "title": title,
-                "description": description,
-                "score": score,
-            })
+        current_section['items'].append({
+            "code": code,
+            "title": title,
+            "description": description,
+            "score": score
+        })
+
 
     return sop_items
 
 
 def clean_text_sop(text):
-
     if not isinstance(text, str):
         return ""
 
     text = re.sub(r'"[^"]*"', '', text)
-    text = re.sub(r'\([^)]*\)', '', text)
     text = re.sub(r'^\s*\d+([\.\-\d]*)[\)\.\-\s]*', '', text)
     text = re.sub(r'[;:()\[\]{}"]', '', text)
     text = ' '.join(text.split())
     text = text.replace('\xa0', ' ').strip()
-    if not text or re.fullmatch(r'\d+|[^\w\s]+', text):
+    if not text or re.fullmatch(r'\d+|[^\w\s\-]+', text):
         return ""
 
     return text.strip()
 
 
-def split_sop_into_subsentences(text, title=None):
+def split_sop_into_subsentences(text):
     if not isinstance(text, str) or not text.strip():
         return []
 
+    lines = text.strip().split('\n')
     results = []
 
-    if '\n' in text:
-        after = text.split('\n', 1)[1].strip()
-        cleaned_line = clean_text_sop(after)
-        if cleaned_line:
-            results.append(cleaned_line)
-    else:
-        cleaned_line = clean_text_sop(text.strip())
-        if cleaned_line:
-            results.append(cleaned_line)
+    for line in lines:
+        cleaned = clean_text_sop(line.strip())
+        if cleaned:
+            results.append(cleaned)
 
     return results
 
@@ -272,7 +275,8 @@ IGNORE_KEYWORDS = [
     "alo", "chào", "em gọi", "cho em hỏi", "không ạ", "bên em", "đơn vị", "công ty", "em là", "gọi cho chị", "từ bên", "liên kết",
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
-    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số", "giúp nha"
+    "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số", "giúp nha", "giúp", "xin phép", "đóng giúp", "mình bảo",
+    "em cảm ơn"
 ]
 
 
@@ -447,7 +451,6 @@ def analyze_call_transcript(text, min_sentence_length=5):
             ]
         }
     }
-
 
 
 @st.cache_resource
@@ -807,36 +810,72 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     matched = True
                     status = "Đã tuân thủ"
 
-            elif re.search(r"\b(chị|anh)\s+\w+", lower_sub):
-                matched = True
-                status = "Đã tuân thủ"
-
             elif "cám ơn và chào khách hàng" in lower_sub:
                 if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
                     matched = True
                     status = "Đã tuân thủ"
 
-            elif "lời nhắn" in lower_sub:
-                if any(re.search(r"gọi lại", s.lower()) and re.search(r"tổng đài", s.lower()) for s in agent_sentences):
+            elif "nhắn khách hàng gọi lại tổng đài" in lower_sub:
+                if any(re.search(r"gọi", s.lower()) and re.search(r"tổng đài", s.lower()) for s in agent_sentences):
                     matched = True
                     status = "Đã tuân thủ"
 
-            elif "đơn vị gọi đến" in lower_sub or "giới thiệu tên" in lower_sub:
+            elif "đơn vị gọi đến" in lower_sub:
+                  don_vi_keywords = [
+                      r"\bhd\s*saigon\b",
+                      r"\bbên\s+\w+",
+                      r"\bcông\s+ty\b",
+                  ]
+
+                  nhac_no_keywords = [
+                      r"\bnhắc\b",
+                      r"\bthanh\s+toán\b",
+                      r"\bkhoản\b",
+                      r"\bnợ\b",
+                      r"\btrễ\b"
+                  ]
+
+                  for s in agent_sentences:
+                      s_lower = s.lower()
+                      if any(re.search(kw, s_lower) for kw in don_vi_keywords) and any(re.search(kw, s_lower) for kw in nhac_no_keywords):
+                          matched = True
+
+                          status = "Đã tuân thủ"
+
+            elif "đơn vị gọi đến" in lower_sub and "giới thiệu tên" in lower_sub:
                 for s in agent_sentences:
                     s_lower = s.lower()
-                    cond1 = ("em bên" in s_lower or "bên" in s_lower)
+                    cond1 = ("em là" in s_lower and "bên" in s_lower)
                     cond2 = ("phòng công nợ" in s_lower or "công ty tài chính" in s_lower or
                              re.search(r"\bh\s*d\b|\bhd\b", s_lower) or "sài gòn" in s_lower or
                              "hcm" in s_lower or "chủ trả góp" in s_lower or "chào" in s_lower)
-                    cond3 = ("xin phép trao đổi" in s_lower or
-                             "xin phép nói chuyện" in s_lower and
-                             "cho em hỏi" in s_lower)
-                    if (cond1 or cond2) and cond3:
+                    if cond1 and cond2:
                         matched = True
                         status = "Đã tuân thủ"
-                        break
 
-            elif "ghi nhận kết quả cuộc gọi" in lower_sub:
+            elif "xin phép trao đổi" in lower_sub:
+                if any(re.search(r"xin phép", s.lower()) and re.search(r"cho em hỏi", s.lower()) for s in agent_sentences):
+                    matched = True
+                    status = "Đã tuân thủ"
+
+            
+            elif "số ngày quá hạn" in lower_sub:
+                if any(re.search(r"trễ", s.lower()) for s in agent_sentences):
+                    matched = True
+                    status = "Đã tuân thủ"
+
+            elif "số tiền trễ hạn" in lower_sub:
+                for s in agent_sentences:
+                    s_lower = s.lower()
+
+                    match = re.search(r"trễ\s+\d+\s+ngày.*(\d+[.,]?\d*\s*(ngàn|triệu|k|đ)?)", s_lower)
+                    match_alt = re.search(r"trễ\s+\d+\s+ngày.*\d{1,3}([.,]\d{3})+", s_lower)
+
+                    if match or match_alt:
+                        matched = True
+                        status = "Đã tuân thủ"
+
+            elif "ghi nhận" in lower_sub:
                 matched = True
                 status = "Đã tuân thủ"
 
@@ -848,10 +887,10 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 matched = True
                 status = "Đã tuân thủ"
 
-            elif "hotline" in lower_sub:
-                if any("1900558854" in s for s in agent_sentences):
-                    matched = True
-                    status = "Đã tuân thủ"
+
+            elif "không cúp máy ngang" in lower_sub:
+                matched = True
+                status = "Đã tuân thủ"
 
             else:
                 if any(calculate_similarity(s, sub_sentence, model) >= threshold for s in agent_sentences):
@@ -902,38 +941,28 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
         if item.get("STT") != "" and item.get("Trạng thái") in ["Đã tuân thủ", "Chưa tuân thủ"]
     ]
 
-    complied_criteria = [
-        item for item in valid_criteria
-        if item.get("Trạng thái") == "Đã tuân thủ"
-    ]
+    non_compliance_score = 0
 
-    sop_compliance_rate = (len(complied_criteria) / len(valid_criteria) * 100) if valid_criteria else 0
+    for item in valid_criteria:
+        status = item.get("Trạng thái")
+        raw_score = item.get("Điểm", 0)
 
-    return processed_results, sop_compliance_rate, sop_violation_items
+        try:
+            score = float(raw_score) if raw_score != "" else 0
+        except ValueError:
+            score = 0
+
+        if status == "Chưa tuân thủ":
+            non_compliance_score += score
 
 
-def format_sop_results(sop_results, expected_keys=None):
-    """
-    Format lại danh sách kết quả compliance:
-    - Đảm bảo đủ keys, chuẩn hóa kiểu dữ liệu
-    """
-    if expected_keys is None:
-        expected_keys = ["STT", "Tiêu chí", "Trạng thái", "Điểm"]
+    sop_compliance_rate = 100 - non_compliance_score
 
-    safe_results = []
-    for result in sop_results:
-        if isinstance(result, dict):
-            clean_result = {k: result.get(k, "") for k in expected_keys}
-            clean_result["STT"] = str(clean_result["STT"]).strip() or "?"
-            try:
-                clean_result["Điểm"] = int(float(clean_result["Điểm"]))
-            except Exception:
-                clean_result["Điểm"] = 0
-            if clean_result["Trạng thái"] not in ["Đã tuân thủ", "Chưa tuân thủ"]:
-                clean_result["Trạng thái"] = "Không xác định"
-            clean_result["Tiêu chí"] = str(clean_result["Tiêu chí"])
-            safe_results.append(clean_result)
-    return safe_results
+    formatted_violations = "\n".join(
+        f"STT: {item['STT']} - Tiêu chí: {item['Tiêu chí']} - Điểm: {item['Điểm']}" for item in sop_violation_items
+    )
+
+    return processed_results, sop_compliance_rate, formatted_violations
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
@@ -946,6 +975,7 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
 
     try:
         sheet_name = detect_sheet_from_text(agent_transcript)
+
         sop_items = extract_sop_items_from_excel(sop_excel_file, sheet_name=sheet_name)
 
         sop_results, sop_rate, sop_violations = calculate_sop_compliance_by_sentences(
@@ -955,25 +985,36 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             threshold=threshold
         )
 
-        safe_results = format_sop_results(sop_results)
+        expected_keys = ["STT", "Tiêu chí", "Trạng thái", "Điểm"]
+        safe_results = []
 
-        return {
-            "sop_compliance_results": safe_results,
-            "compliance_rate": sop_rate,
-            "violations": sop_violations
-        }
+        for result in sop_results:
+            if isinstance(result, dict):
+                clean_result = {k: result.get(k, "") for k in expected_keys}
+
+                clean_result["STT"] = str(clean_result["STT"]).strip() or "?"
+
+                try:
+                    clean_result["Điểm"] = int(float(clean_result["Điểm"]))
+                except Exception:
+                    clean_result["Điểm"] = 0
+
+                if clean_result["Trạng thái"] not in ["Đã tuân thủ", "Chưa tuân thủ"]:
+                    clean_result["Trạng thái"] = "Không xác định"
+
+                clean_result["Tiêu chí"] = str(clean_result["Tiêu chí"])
+
+                safe_results.append(clean_result)
+
+        return safe_results, sop_rate, sop_violations
 
     except Exception as e:
-        return {
-            "sop_compliance_results": [{
-                "STT": "?",
-                "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
-                "Trạng thái": "Lỗi",
-                "Điểm": 0
-            }],
-            "compliance_rate": 0.0,
-            "violations": []
-        }
+        return [{
+            "STT": "?",
+            "Tiêu chí": f"Lỗi khi đánh giá mức độ tuân thủ SOP: {e}",
+            "Trạng thái": "Lỗi",
+            "Điểm": ""
+        }], 0.0, []
 
 
 def split_violation_text(violation_text):
@@ -990,95 +1031,75 @@ def split_violation_text(violation_text):
     return violations
 
 
-def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method="rag", threshold=0.6):
+def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file, method=None, threshold=0.7):
+    """
+    Đánh giá transcript bằng mô hình RAG và tính toán độ tuân thủ SOP.
+    """
+    selected_method = method or "rag"
     eval_result = {}
-    try:
 
-        sop_eval = evaluate_sop_compliance(agent_transcript, sop_excel_file, threshold=threshold)
+    sop_results, sop_rate, sop_violations = evaluate_sop_compliance(
+        agent_transcript, sop_excel_file, threshold=threshold
+    )
 
-        sop_results = sop_eval.get("sop_compliance_results", [])
-        sop_rate = sop_eval.get("compliance_rate", 0)
-        sop_violations = sop_eval.get("violations", [])
+    if not isinstance(sop_violations, list):
+        sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
+    else:
+        sop_violations = [
+            {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
+            for v in sop_violations
+        ]
 
-        if not isinstance(sop_violations, list):
-            sop_violations = [{"STT": "?", "Tiêu chí": str(sop_violations)}]
-        else:
-            sop_violations = [
-                {"STT": "?", "Tiêu chí": str(v)} if not isinstance(v, dict) else v
-                for v in sop_violations
-            ]
 
-        if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
-            raw_text = sop_violations[0].get("Tiêu chí", "")
-            if raw_text and "\n" in raw_text:
-                sop_violations = split_violation_text(raw_text)
+    if len(sop_violations) == 1 and isinstance(sop_violations[0], dict):
+        raw_text = sop_violations[0].get("Tiêu chí", "")
+        if "\n" in raw_text:
+            sop_violations = split_violation_text(raw_text)
 
-        eval_result["sop_compliance_results"] = sop_results
-        eval_result["compliance_rate"] = sop_rate
-        eval_result["violations"] = sop_violations
 
-    except Exception as e:
-        eval_result["sop_compliance_results"] = [{
-            "STT": "?",
-            "Tiêu chí": f"Lỗi khi đánh giá tuân thủ SOP: {e}",
-            "Trạng thái": "Lỗi",
-            "Điểm": 0
-        }]
-        eval_result["violations"] = []
+    eval_result["sop_compliance_results"] = sop_results
+    eval_result["compliance_rate"] = sop_rate
+    eval_result["violations"] = sop_violations
 
-    if method == "rag":
+    if selected_method == "rag":
         try:
             qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(sop_excel_file)
             if not qa_llm or not retriever:
                 eval_result["rag_explanations"] = "Không thể tải mô hình hoặc dữ liệu RAG."
-                eval_result["selected_method"] = method
+                eval_result["selected_method"] = selected_method
                 return eval_result
 
             rag_explanations = []
 
-            for violation in eval_result["violations"]:
-                sop_criterion = violation.get("Tiêu chí") if isinstance(violation, dict) else str(violation)
-                relevant_context = retriever.get_relevant_documents(sop_criterion)
-                rag_context = "\n".join([doc.page_content for doc in relevant_context])
-                rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+            for violation in sop_violations:
+                try:
+                    if isinstance(violation, dict):
+                        sop_criterion = violation.get("Tiêu chí", str(violation))
+                    else:
+                        sop_criterion = str(violation)
 
-                rag_explanations.append({
-                    "Tiêu chí": sop_criterion,
-                    "Giải thích từ RAG": rag_response
-                })
+                    relevant_context = retriever.get_relevant_documents(sop_criterion)
+                    rag_context = "\n".join([doc.page_content for doc in relevant_context])
+                    rag_response = qa_llm._call(prompt=sop_criterion, context=rag_context)
+
+                    rag_explanations.append({
+                        "Tiêu chí": sop_criterion,
+                        "Giải thích từ RAG": rag_response
+                    })
+
+                except Exception as e:
+                    rag_explanations.append({
+                        "Tiêu chí": str(violation),
+                        "Giải thích từ RAG": f"Lỗi: {e}"
+                    })
 
             eval_result["rag_explanations"] = rag_explanations
 
         except Exception as e:
             eval_result["rag_explanations"] = f"Lỗi khi sử dụng RAG: {e}"
 
-    eval_result["selected_method"] = method
+    eval_result["selected_method"] = selected_method
     return eval_result
-
-
-def transcribe_all_audio(uploaded_audio_file):
-    transcripts_by_file = {}
-    detected_sheets_by_file = {}
-
-    uploaded_audio_file.seek(0)
-    if uploaded_audio_file.name.endswith(".zip"):
-        with zipfile.ZipFile(uploaded_audio_file) as z:
-            for file_name in z.namelist():
-                if file_name.lower().endswith(".wav"):
-                    with z.open(file_name) as wav_file:
-                        file_like = BytesIO(wav_file.read())
-                        file_like.name = file_name
-                        file_like.seek(0)
-                        transcript = transcribe_audio(file_like)
-                        transcripts_by_file[file_name] = transcript
-                        detected_sheets_by_file[file_name] = detect_sheet_from_text(transcript)
-
-    elif uploaded_audio_file.name.lower().endswith(".wav"):
-        transcript = transcribe_audio(uploaded_audio_file)
-        transcripts_by_file[uploaded_audio_file.name] = transcript
-        detected_sheets_by_file[uploaded_audio_file.name] = detect_sheet_from_text(transcript)
-
-    return transcripts_by_file, detected_sheets_by_file
 
 
 def process_files(uploaded_excel_file, uploaded_audio_file):
@@ -1112,27 +1133,24 @@ def process_files(uploaded_excel_file, uploaded_audio_file):
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
-def export_multiple_sheets(all_results):
-    group_calls = {
-        "Cuoc_goi_nguoi_than": [],
-        "Cuoc_goi_khach_hang": []
-    }
+def export_combined_sheet(df_kh_all, df_nt_all):
+    if not df_kh_all and not df_nt_all:
+        return None
 
-    for sheet_name, df in all_results:
-        if sheet_name in group_calls:
-            group_calls[sheet_name].append(df)
-        else:
-            print(f"Cảnh báo: Sheet name không hợp lệ: {sheet_name}")
+    df_kh_combined = pd.concat(df_kh_all, ignore_index=True) if df_kh_all else pd.DataFrame()
+    df_nt_combined = pd.concat(df_nt_all, ignore_index=True) if df_nt_all else pd.DataFrame()
+
+    df_kh_combined.columns = [f"KH_{col}" for col in df_kh_combined.columns]
+    df_nt_combined.columns = [f"NT_{col}" for col in df_nt_combined.columns]
+
+    df_merged = pd.concat([df_kh_combined, df_nt_combined], axis=1)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        for sheet_name, dfs in group_calls.items():
-            if dfs:
-                combined = pd.concat(dfs, ignore_index=True)
-                combined.to_excel(writer, sheet_name=sheet_name, index=False)
-
+        df_merged.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1154,6 +1172,8 @@ def main():
                 return
 
             all_results_for_export = []
+            df_kh_all = []
+            df_nt_all = []
 
             for file_name, transcript in transcripts_by_file.items():
                 st.subheader(f"Tệp âm thanh: {file_name}")
@@ -1163,20 +1183,20 @@ def main():
                 tone_chunks = analysis_result["tone_chunks"]
                 customer_label = classify_tone(transcript, chunk_size=None)
 
-                st.subheader("Kết quả phân tích:")
-                st.write(f"Cảm xúc của khách hàng: {customer_label}")
-                st.write(f"Thực thể được nhận diện: {analysis_result['named_entities']}")
-                st.write(f"Ý định của khách hàng: {analysis_result['intent']}")
-                st.write(f"Tỷ lệ hợp tác: {analysis_result['collaboration_rate']}%")
-                st.text(analysis_result["interaction_summary"])
+                notes_parts = [
+                    f"- Cảm xúc của khách hàng: {customer_label}",
+                    f"- Ý định của khách hàng: {analysis_result['intent']}",
+                    "- Tổng hợp cảm xúc trong câu của khách hàng:"
+                ]
 
-                st.header("Tổng hợp cảm xúc trong câu của khách hàng")
                 for tone, count in tone_chunks["tone_summary"].items():
-                    st.write(f"- {tone}: {count} câu")
+                    notes_parts.append(f"  - {tone}: {count} câu")
 
-                st.subheader("Các đoạn nổi bật:")
+                notes_parts.append("- Các đoạn nổi bật:")
                 for chunk in tone_chunks["important_chunks"]:
-                    st.markdown(f"> \"{chunk['text']}\"\n→ **{chunk['tone']}**")
+                    notes_parts.append(f"  - > \"{chunk['text']}\"\n    → **{chunk['tone']}**")
+
+                note_text = "\n".join(notes_parts)
 
                 try:
                     results = evaluate_combined_transcript_and_compliance(
@@ -1187,6 +1207,7 @@ def main():
                     )
                     compliance_rate = results.get('compliance_rate', 0.0)
                     sop_results = results.get('sop_compliance_results', [])
+                    sop_violations = results.get('violations',[])
 
                     if sop_results:
                         df_sop_results = pd.DataFrame(sop_results)
@@ -1194,19 +1215,13 @@ def main():
                         df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
-
-                        def classify_entire_call(df):
-                            all_criteria = " ".join(df["Tiêu chí"].astype(str).str.lower())
-                            has_family = any(key in all_criteria for key in ["người thân", "quan hệ", "ngthân", "nt", "than nhân"])
-                            has_customer = any(key in all_criteria for key in ["khách hàng", "k/h", "hợp đồng", "khach hang", "hđ"])
-                            if has_family:
-                                return "Cuoc_goi_nguoi_than"
-                            elif has_customer:
-                                return "Cuoc_goi_khach_hang"
-                            else:
-                                return "Khong_xac_dinh"
-
-                        call_type = classify_entire_call(df_sop_results)
+                        sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip().lower()
+                        if "NT" in sheet_name_detected:
+                            call_type = "NT"
+                        elif "KH" in sheet_name_detected:
+                            call_type = "KH"
+                        else:
+                            call_type = "Unknown"
 
                         criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
 
@@ -1220,11 +1235,17 @@ def main():
                         df_pivot = df_pivot[criteria_order]
                         df_pivot.insert(0, "Tên file audio", file_name)
                         df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
+                        df_pivot["Chi tiết lỗi đánh giá - đơn vị"] = sop_violations
+                        df_pivot["Tỷ lệ phản hồi tích cực của KH"] = {analysis_result['collaboration_rate']}%"
+                        df_pivot["Ghi chú - đơn vị"] = note_text
+
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
                         df_pivot["Phản hồi gợi ý"] = suggestion
 
-                        if call_type in ["Cuoc_goi_nguoi_than", "Cuoc_goi_khach_hang"]:
-                            all_results_for_export.append((call_type, df_pivot))
+                        if call_type == "KH":
+                              df_kh_all.append(df_pivot)
+                        elif call_type == "NT":
+                                        df_nt_all.append(df_pivot)
                         else:
                             st.warning(f"Không phân loại được loại cuộc gọi cho file: {file_name}")
 
@@ -1235,17 +1256,12 @@ def main():
                     st.error(f"Lỗi khi đánh giá tuân thủ: {e}")
 
 
-            if all_results_for_export:
-                excel_data = export_multiple_sheets(all_results_for_export)
-            else:
-                excel_data = None
-                st.warning("Chưa có dữ liệu kết quả để xuất báo cáo.")
+            excel_file = export_combined_sheet(df_kh_all, df_nt_all)
 
-            if excel_data is not None:
-                st.download_button(
+            st.download_button(
                     label="Tải báo cáo tổng hợp tất cả cuộc gọi",
-                    data=excel_data,
-                    file_name="AI_QA_REPORT_ALL_CALLS.xlsx",
+                    data=excel_file,
+                    file_name="AI_QA_REPORT_GRACE.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
