@@ -1157,21 +1157,17 @@ def process_files_from_zip_transcripts(uploaded_excel_file, uploaded_zip_file):
 
 
 def export_combined_sheet(df_kh_all, df_nt_all):
-    if not df_kh_all and not df_nt_all:
+    if df_kh_all.empty and df_nt_all.empty:
         return None
 
-    df_kh_combined = pd.concat(df_kh_all, ignore_index=True) if df_kh_all else pd.DataFrame()
-    df_nt_combined = pd.concat(df_nt_all, ignore_index=True) if df_nt_all else pd.DataFrame()
-
-
-    df_merged = pd.concat([df_kh_combined, df_nt_combined], axis=1)
+    df_merged = pd.concat([df_kh_all, df_nt_all], axis=1)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_merged.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
-    return output
 
+    return output
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1304,7 +1300,7 @@ def main():
             df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
             df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
-            excel_file = export_combined_sheet(df_kh_all, df_nt_all)
+            excel_file = export_combined_sheet([df_kh_all], [df_nt_all])
 
             st.download_button(
                     label="Tải báo cáo tổng hợp tất cả cuộc gọi",
