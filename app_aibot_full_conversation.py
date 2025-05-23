@@ -1261,16 +1261,20 @@ def main():
                             ]
                         )
 
+                        # Đảm bảo df có đúng các cột, nếu thiếu thì thêm và để trống
                         for col in ordered_columns:
                             if col not in df_final.columns:
                                 df_final[col] = ""
 
                         df_final = df_final[ordered_columns]
 
+                        # Chỉ append vào 1 danh sách duy nhất
                         df_all.append(df_final)
 
                     else:
                         st.warning(f"Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí cho file: {file_name}")
+                except Exception as e:
+                        st.error(f"Lỗi khi đánh giá compliance: {e}")
 
             df_kh_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "KH"]
             df_nt_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "NT"]
