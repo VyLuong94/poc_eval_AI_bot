@@ -1171,9 +1171,7 @@ def main():
                 st.error(f"Lỗi khi xử lý tệp: {e}")
                 return
 
-            all_results_for_export = []
-            df_kh_all = []
-            df_nt_all = []
+            df_all = []
 
             for file_name, transcript in transcripts_by_file.items():
                 st.subheader(f"Tệp âm thanh: {file_name}")
@@ -1216,7 +1214,6 @@ def main():
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
                         sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip()
-                        st.write(f"→ Sheet name detected: {sheet_name_detected}")
 
                         if "NT" in sheet_name_detected:
                             call_type = "NT"
@@ -1234,13 +1231,14 @@ def main():
                             aggfunc='first'
                         ).reset_index(drop=True)
 
-                        df_pivot = df_pivot.reindex(columns=criteria_order).fillna("N")
+                        df_pivot = df_pivot.reindex(columns=criteria_order).fillna("")
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
-                        note_text = ""  
+                        note_text = ""
 
                         metadata = {
                             "Tên file audio": file_name,
+                            "Loại cuộc gọi": call_type,
                             "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
                             "Chi tiết lỗi đánh giá - đơn vị": [sop_violations],
                             "Tỷ lệ phản hồi tích cực của KH": f"{analysis_result['collaboration_rate']}%",
@@ -1248,13 +1246,11 @@ def main():
                             "Phản hồi gợi ý": suggestion
                         }
 
-                        df_info = pd.DataFrame(metadata)
-
-                        # Kết hợp
+                        df_info = pd.DataFrame([metadata])  
                         df_final = pd.concat([df_info, df_pivot], axis=1)
 
                         ordered_columns = (
-                            ["Tên file audio"]
+                            ["Tên file audio", "Loại cuộc gọi"]
                             + criteria_order
                             + [
                                 "Tỷ lệ tuân thủ tổng thể",
@@ -1264,21 +1260,20 @@ def main():
                                 "Phản hồi gợi ý"
                             ]
                         )
+
+                        for col in ordered_columns:
+                            if col not in df_final.columns:
+                                df_final[col] = ""
+
                         df_final = df_final[ordered_columns]
 
-                        if call_type == "KH":
-                            df_kh_all.append(df_final)
-                        elif call_type == "NT":
-                            df_nt_all.append(df_final)
-                        else:
-                            st.warning(f"Không phân loại được loại cuộc gọi cho file: {file_name}")
+                        df_all.append(df_final)
+
                     else:
-                        st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
+                        st.warning(f"Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí cho file: {file_name}")
 
-                except Exception as e:
-                    st.error(f"Lỗi khi đánh giá tuân thủ: {e}")
-
-
+            df_kh_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "KH"]
+            df_nt_all = [df for df in df_all if df["Loại cuộc gọi"].iloc[0] == "NT"]
             excel_file = export_combined_sheet(df_kh_all, df_nt_all)
 
             st.download_button(
