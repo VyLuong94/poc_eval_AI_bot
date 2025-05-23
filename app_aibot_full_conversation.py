@@ -1234,13 +1234,22 @@ def main():
 
                         df_pivot = df_pivot.reindex(columns=criteria_order).fillna("N")
 
-                        df_pivot.insert(0, "Tên file audio", file_name)
+                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
+                        note_text = ""  
 
-                        df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
-                        df_pivot["Chi tiết lỗi đánh giá - đơn vị"] = sop_violations
-                        df_pivot["Tỷ lệ phản hồi tích cực của KH"] = f"{analysis_result['collaboration_rate']}%"
-                        df_pivot["Ghi chú - đơn vị"] = note_text
-                        df_pivot["Phản hồi gợi ý"] = suggestion
+                        metadata = {
+                            "Tên file audio": file_name,
+                            "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
+                            "Chi tiết lỗi đánh giá - đơn vị": [sop_violations],
+                            "Tỷ lệ phản hồi tích cực của KH": f"{analysis_result['collaboration_rate']}%",
+                            "Ghi chú - đơn vị": note_text,
+                            "Phản hồi gợi ý": suggestion
+                        }
+
+                        df_info = pd.DataFrame(metadata)
+
+                        # Kết hợp
+                        df_final = pd.concat([df_info, df_pivot], axis=1)
 
                         ordered_columns = (
                             ["Tên file audio"]
@@ -1253,15 +1262,14 @@ def main():
                                 "Phản hồi gợi ý"
                             ]
                         )
-                        df_pivot = df_pivot[ordered_columns]
+                        df_final = df_final[ordered_columns]
 
                         if call_type == "KH":
-                              df_kh_all.append(df_pivot)
+                            df_kh_all.append(df_final)
                         elif call_type == "NT":
-                                        df_nt_all.append(df_pivot)
+                            df_nt_all.append(df_final)
                         else:
                             st.warning(f"Không phân loại được loại cuộc gọi cho file: {file_name}")
-
                     else:
                         st.warning("Không tìm thấy kết quả đánh giá chi tiết từng tiêu chí.")
 
