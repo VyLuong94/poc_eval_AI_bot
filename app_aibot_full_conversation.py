@@ -1160,14 +1160,26 @@ def export_combined_sheet(df_kh_all, df_nt_all):
     if df_kh_all.empty and df_nt_all.empty:
         return None
 
-    df_merged = pd.concat([df_kh_all, df_nt_all], axis=1)
+    all_columns = df_kh_all.columns.tolist()
+
+    for col in all_columns:
+        if col not in df_nt_all.columns:
+            df_nt_all[col] = ""
+
+    df_nt_all = df_nt_all[all_columns]
+
+    df_merged = pd.concat([df_kh_all, df_nt_all], axis=0, ignore_index=True)
+
+    meta_cols = ["Tên file audio", "Loại cuộc gọi"]
+    remaining_cols = [col for col in df_merged.columns if col not in meta_cols]
+    df_merged = df_merged[meta_cols + remaining_cols]
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_merged.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
-
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
