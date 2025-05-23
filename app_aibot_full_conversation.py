@@ -1140,8 +1140,6 @@ def export_combined_sheet(df_kh_all, df_nt_all):
     df_kh_combined = pd.concat(df_kh_all, ignore_index=True) if df_kh_all else pd.DataFrame()
     df_nt_combined = pd.concat(df_nt_all, ignore_index=True) if df_nt_all else pd.DataFrame()
 
-    df_kh_combined.columns = [f"KH_{col}" for col in df_kh_combined.columns]
-    df_nt_combined.columns = [f"NT_{col}" for col in df_nt_combined.columns]
 
     df_merged = pd.concat([df_kh_combined, df_nt_combined], axis=1)
 
@@ -1261,14 +1259,12 @@ def main():
                             ]
                         )
 
-                        # Đảm bảo df có đúng các cột, nếu thiếu thì thêm và để trống
                         for col in ordered_columns:
                             if col not in df_final.columns:
                                 df_final[col] = ""
 
                         df_final = df_final[ordered_columns]
 
-                        # Chỉ append vào 1 danh sách duy nhất
                         df_all.append(df_final)
 
                     else:
