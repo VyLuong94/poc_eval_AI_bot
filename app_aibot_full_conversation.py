@@ -1232,15 +1232,28 @@ def main():
                             aggfunc='first'
                         ).reset_index(drop=True)
 
-                        df_pivot = df_pivot[criteria_order]
+                        df_pivot = df_pivot.reindex(columns=criteria_order).fillna("N")
+
                         df_pivot.insert(0, "Tên file audio", file_name)
+
                         df_pivot["Tỷ lệ tuân thủ tổng thể"] = f"{compliance_rate:.2f}%"
                         df_pivot["Chi tiết lỗi đánh giá - đơn vị"] = sop_violations
                         df_pivot["Tỷ lệ phản hồi tích cực của KH"] = f"{analysis_result['collaboration_rate']}%"
                         df_pivot["Ghi chú - đơn vị"] = note_text
-
-                        suggestion = suggest_response(transcript, customer_label, use_llm=True)
                         df_pivot["Phản hồi gợi ý"] = suggestion
+
+                        ordered_columns = (
+                            ["Tên file audio"]
+                            + criteria_order
+                            + [
+                                "Tỷ lệ tuân thủ tổng thể",
+                                "Chi tiết lỗi đánh giá - đơn vị",
+                                "Tỷ lệ phản hồi tích cực của KH",
+                                "Ghi chú - đơn vị",
+                                "Phản hồi gợi ý"
+                            ]
+                        )
+                        df_pivot = df_pivot[ordered_columns]
 
                         if call_type == "KH":
                               df_kh_all.append(df_pivot)
