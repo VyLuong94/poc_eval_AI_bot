@@ -1252,16 +1252,17 @@ def main():
                     )
                     compliance_rate = results.get('compliance_rate', 0.0)
                     sop_results = results.get('sop_compliance_results', [])
-                    sop_violations = results.get('violations',[])
+                    sop_violations = results.get('violations', [])
 
                     if sop_results:
                         df_sop_results = pd.DataFrame(sop_results)
                         df_sop_results = df_sop_results[df_sop_results["Trạng thái"].astype(str).str.strip() != ""]
+
                         df_sop_results["Trạng thái"] = df_sop_results["Trạng thái"].apply(
                             lambda x: "Y" if str(x).strip().lower() == "đã tuân thủ" else "N"
                         )
-                        sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip()
 
+                        sheet_name_detected = detected_sheets_by_file.get(file_name, "").strip()
                         if "NT" in sheet_name_detected:
                             call_type = "NT"
                         elif "KH" in sheet_name_detected:
@@ -1277,7 +1278,6 @@ def main():
                             values="Trạng thái",
                             aggfunc='first'
                         ).reset_index(drop=True)
-
                         df_pivot = df_pivot.reindex(columns=criteria_order).fillna("")
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
@@ -1287,46 +1287,32 @@ def main():
                             "Tên file audio": file_name,
                             "Loại cuộc gọi": call_type,
                             "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
-                            "Chi tiết lỗi đánh giá - đơn vị": "\n".join(f"- {v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)),
+                            "Chi tiết lỗi đánh giá - đơn vị": "\n".join(
+                                f"- {v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)
+                            ),
                             "Tỷ lệ phản hồi tích cực của KH": f"{analysis_result['collaboration_rate']}%",
                             "Ghi chú - đơn vị": note_text,
                             "Phản hồi gợi ý": suggestion
                         }
 
-                        # Đưa metadata và tiêu chí vào chung DataFrame
+                        # Tạo metadata và tiêu chí đầy đủ theo thứ tự
                         df_info = pd.DataFrame([metadata])
-                        df_final = pd.concat([df_info, df_pivot], axis=1)
-
-                        # Đảm bảo đủ cột tiêu chí (theo thứ tự criteria_order)
                         df_criteria_full = pd.DataFrame(columns=criteria_order)
                         for crit in criteria_order:
-                            df_criteria_full[crit] = df_final[crit] if crit in df_final.columns else ""
+                            df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
-                        # Giữ nguyên các cột metadata (đã có trong df_info)
-                        meta_cols = [
-                            "Tên file audio",
-                            "Loại cuộc gọi",
-                            "Tỷ lệ tuân thủ tổng thể",
-                            "Chi tiết lỗi đánh giá - đơn vị",
-                            "Tỷ lệ phản hồi tích cực của KH",
-                            "Ghi chú - đơn vị",
-                            "Phản hồi gợi ý"
-                        ]
-                        df_meta = df_final[meta_cols]
-
-                        # Kết hợp lại
-                        df_concat = pd.concat([df_meta[["Tên file audio", "Loại cuộc gọi"]], df_criteria_full, df_meta.drop(columns=["Tên file audio", "Loại cuộc gọi"])], axis=1)
-                        df_all.append(df_concat)
-
-
-                        df_concat = pd.concat([df_criteria_full, df_meta], axis=1)
-
-                        df_concat["Tên file audio"] = file_name
-                        df_concat["Loại cuộc gọi"] = call_type
+                        # Ghép metadata + tiêu chí, đảm bảo đúng vị trí
+                        df_concat = pd.concat([
+                            df_info[["Tên file audio", "Loại cuộc gọi"]],
+                            df_criteria_full,
+                            df_info.drop(columns=["Tên file audio", "Loại cuộc gọi"])
+                        ], axis=1)
 
                         df_all.append(df_concat)
+
                 except Exception as e:
-                        st.error(f"Lỗi khi đánh giá compliance: {e}")
+                    st.error(f"Lỗi khi đánh giá compliance: {e}")
+
 
             df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
