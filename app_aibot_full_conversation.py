@@ -1159,18 +1159,44 @@ def export_combined_sheet(df_kh_all, df_nt_all):
     if df_kh_all.empty and df_nt_all.empty:
         return None
 
-    max_len = max(len(df_kh_all), len(df_nt_all))
-    df_kh_all_re = df_kh_all.reset_index(drop=True).reindex(range(max_len)).fillna("")
-    df_nt_all_re = df_nt_all.reset_index(drop=True).reindex(range(max_len)).fillna("")
+
+    meta_cols = [
+        "Tên file audio",
+        "Loại cuộc gọi",
+        "Tỷ lệ tuân thủ tổng thể",
+        "Chi tiết lỗi đánh giá - đơn vị",
+        "Tỷ lệ phản hồi tích cực của KH",
+        "Ghi chú - đơn vị",
+        "Phản hồi gợi ý"
+    ]
 
 
-    df_merged = pd.concat([df_kh_all_re, df_nt_all_re], axis=1)
+    all_criteria_cols = (
+        set(df_kh_all.columns.tolist()) |
+        set(df_nt_all.columns.tolist())
+    ) - set(meta_cols)
+
+
+    all_cols_ordered = (
+        ["Tên file audio", "Loại cuộc gọi"] +
+        sorted(all_criteria_cols) +
+        meta_cols[2:]
+    )
+
+
+    df_kh_all_filled = df_kh_all.reindex(columns=all_cols_ordered, fill_value="")
+    df_nt_all_filled = df_nt_all.reindex(columns=all_cols_ordered, fill_value="")
+
+
+    df_combined = pd.concat([df_kh_all_filled, df_nt_all_filled], axis=0, ignore_index=True)
+
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df_merged.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
+        df_combined.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
+
 
 
 
@@ -1267,17 +1293,18 @@ def main():
                             "Phản hồi gợi ý": suggestion
                         }
 
+                        # Đưa metadata và tiêu chí vào chung DataFrame
                         df_info = pd.DataFrame([metadata])
                         df_final = pd.concat([df_info, df_pivot], axis=1)
 
+                        # Đảm bảo đủ cột tiêu chí (theo thứ tự criteria_order)
                         df_criteria_full = pd.DataFrame(columns=criteria_order)
                         for crit in criteria_order:
-                            if crit in df_final.columns:
-                                df_criteria_full[crit] = df_final[crit]
-                            else:
-                                df_criteria_full[crit] = ""
+                            df_criteria_full[crit] = df_final[crit] if crit in df_final.columns else ""
 
+                        # Giữ nguyên các cột metadata (đã có trong df_info)
                         meta_cols = [
+                            "Tên file audio",
                             "Loại cuộc gọi",
                             "Tỷ lệ tuân thủ tổng thể",
                             "Chi tiết lỗi đánh giá - đơn vị",
@@ -1286,6 +1313,11 @@ def main():
                             "Phản hồi gợi ý"
                         ]
                         df_meta = df_final[meta_cols]
+
+                        # Kết hợp lại
+                        df_concat = pd.concat([df_meta[["Tên file audio", "Loại cuộc gọi"]], df_criteria_full, df_meta.drop(columns=["Tên file audio", "Loại cuộc gọi"])], axis=1)
+                        df_all.append(df_concat)
+
 
                         df_concat = pd.concat([df_criteria_full, df_meta], axis=1)
 
@@ -1298,13 +1330,14 @@ def main():
 
             df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
-            cols_order = ["Tên file audio", "Loại cuộc gọi"] + df_criteria_full.columns.tolist() + meta_cols[1:]
+            cols_order = ["Tên file audio", "Loại cuộc gọi"] + criteria_order + meta_cols[2:]
             df_all_concat = df_all_concat[cols_order]
 
             df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
             df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
             excel_file = export_combined_sheet(df_kh_all, df_nt_all)
+
 
             st.download_button(
                     label="Tải báo cáo tổng hợp tất cả cuộc gọi",
