@@ -1313,6 +1313,7 @@ def main():
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
 
+            meta_cols = ["Tên file audio", "Loại cuộc gọi"]
 
             df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
