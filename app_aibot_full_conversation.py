@@ -682,7 +682,7 @@ def generate_response(text, label):
 
     Yêu cầu:
     - Trả lời khách hàng bằng **tiếng Việt**, lịch sự, thân thiện, phù hợp hoàn cảnh.
-    - Câu trả lời ngắn gọn (1-2 câu), tự nhiên như người thật, không máy móc.
+    - Câu trả lời ngắn gọn, tự nhiên như người thật, không máy móc.
     - Nếu khách hợp tác, nhấn mạnh lịch hẹn thanh toán.
     - Nếu khách từ chối hoặc trì hoãn, hãy chọn cách xử lý phù hợp nhưng vẫn giữ thái độ thiện chí.
 
@@ -858,7 +858,6 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     matched = True
                     status = "Đã tuân thủ"
 
-            
             elif "số ngày quá hạn" in lower_sub:
                 if any(re.search(r"trễ", s.lower()) for s in agent_sentences):
                     matched = True
@@ -1160,19 +1159,12 @@ def export_combined_sheet(df_kh_all, df_nt_all):
     if df_kh_all.empty and df_nt_all.empty:
         return None
 
-    all_columns = df_kh_all.columns.tolist()
+    max_len = max(len(df_kh_all), len(df_nt_all))
+    df_kh_all_re = df_kh_all.reset_index(drop=True).reindex(range(max_len)).fillna("")
+    df_nt_all_re = df_nt_all.reset_index(drop=True).reindex(range(max_len)).fillna("")
 
-    for col in all_columns:
-        if col not in df_nt_all.columns:
-            df_nt_all[col] = ""
 
-    df_nt_all = df_nt_all[all_columns]
-
-    df_merged = pd.concat([df_kh_all, df_nt_all], axis=0, ignore_index=True)
-
-    meta_cols = ["Tên file audio", "Loại cuộc gọi"]
-    remaining_cols = [col for col in df_merged.columns if col not in meta_cols]
-    df_merged = df_merged[meta_cols + remaining_cols]
+    df_merged = pd.concat([df_kh_all_re, df_nt_all_re], axis=1)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -1269,13 +1261,13 @@ def main():
                             "Tên file audio": file_name,
                             "Loại cuộc gọi": call_type,
                             "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
-                            "Chi tiết lỗi đánh giá - đơn vị": [sop_violations],
+                            "Chi tiết lỗi đánh giá - đơn vị": "\n".join(f"- {v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)),
                             "Tỷ lệ phản hồi tích cực của KH": f"{analysis_result['collaboration_rate']}%",
                             "Ghi chú - đơn vị": note_text,
                             "Phản hồi gợi ý": suggestion
                         }
 
-                        df_info = pd.DataFrame([metadata])  
+                        df_info = pd.DataFrame([metadata])
                         df_final = pd.concat([df_info, df_pivot], axis=1)
 
                         df_criteria_full = pd.DataFrame(columns=criteria_order)
