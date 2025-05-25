@@ -693,7 +693,7 @@ def generate_response(text, label):
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Bạn là nhân viên thu hồi nợ, hãy trả lời khách hàng bằng tiếng Việt, thân thiện và thực tế."},
+            {"role": "system", "content": "Bạn là nhân viên thu hồi nợ, hãy trả lời khách hàng bằng tiếng Việt, thân thiện, tự nhiên và thực tế."},
             {"role": "user", "content": prompt}
         ],
         temperature=0.7,
@@ -1270,7 +1270,7 @@ def main():
                         else:
                             call_type = "Unknown"
 
-                        criteria_order = df_sop_results["Tiêu chí"].drop_duplicates().tolist()
+                        criteria_order = df_sop_results["Tiêu chí"].tolist()
 
                         df_pivot = df_sop_results.pivot_table(
                             index=[],
@@ -1295,17 +1295,15 @@ def main():
                             "Phản hồi gợi ý": suggestion
                         }
 
-                        # Tạo metadata và tiêu chí đầy đủ theo thứ tự
+
                         df_info = pd.DataFrame([metadata])
                         df_criteria_full = pd.DataFrame(columns=criteria_order)
                         for crit in criteria_order:
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
-                        # Ghép metadata + tiêu chí, đảm bảo đúng vị trí
                         df_concat = pd.concat([
                             df_info[["Tên file audio", "Loại cuộc gọi"]],
-                            df_criteria_full,
-                            df_info.drop(columns=["Tên file audio", "Loại cuộc gọi"])
+                            df_criteria_full
                         ], axis=1)
 
                         df_all.append(df_concat)
@@ -1324,7 +1322,6 @@ def main():
             df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
             excel_file = export_combined_sheet(df_kh_all, df_nt_all)
-
 
             st.download_button(
                     label="Tải báo cáo tổng hợp tất cả cuộc gọi",
