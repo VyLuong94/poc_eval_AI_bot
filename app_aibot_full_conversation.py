@@ -1302,7 +1302,7 @@ def main():
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
                         df_concat = pd.concat([
-                            df_info[["Tên file audio", "Loại cuộc gọi"]],
+                            df_info,
                             df_criteria_full
                         ], axis=1)
 
