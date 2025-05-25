@@ -277,7 +277,7 @@ IGNORE_KEYWORDS = [
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
     "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số", "giúp nha", "giúp", "xin phép", "đóng giúp", "mình bảo",
-    "em cảm ơn"
+    "em cảm ơn", "trễ"
 ]
 
 
@@ -1157,8 +1157,8 @@ def process_files_from_zip_transcripts(uploaded_excel_file, uploaded_zip_file):
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
-def export_combined_sheet(df_kh_all, df_nt_all, criteria_order):
-    if df_kh_all.empty and df_nt_all.empty:
+def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
+    if df_all_concat.empty:
         return None
 
     meta_cols_head = ["Tên file audio", "Loại cuộc gọi"]
@@ -1170,19 +1170,25 @@ def export_combined_sheet(df_kh_all, df_nt_all, criteria_order):
         "Phản hồi gợi ý"
     ]
 
-    all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
+    rows = []
 
-    df_kh_all_filled = df_kh_all.reindex(columns=all_cols_ordered, fill_value="")
-    df_nt_all_filled = df_nt_all.reindex(columns=all_cols_ordered, fill_value="")
+    for _, row in df_all_concat.iterrows():
+        file_name = row["Tên file audio"]
+        criteria_order = criteria_orders_by_file.get(file_name, [])
+        
 
-    df_combined = pd.concat([df_kh_all_filled, df_nt_all_filled], axis=0, ignore_index=True)
+        all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
+
+        ordered_row = pd.Series({col: row.get(col, "") for col in all_cols_ordered})
+        rows.append(ordered_row)
+
+    df_final = pd.DataFrame(rows)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df_combined.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
+        df_final.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1204,7 +1210,7 @@ def main():
                 return
 
             df_all = []
-            all_criteria_set = set()
+            criteria_orders_by_file = {}  
 
             for file_name, transcript in transcripts_by_file.items():
                 st.subheader(f"Tệp âm thanh: {file_name}")
@@ -1256,8 +1262,9 @@ def main():
                         else:
                             call_type = "Unknown"
 
-                        criteria_order_current = df_sop_results["Tiêu chí"].tolist()
-                        all_criteria_set.update(criteria_order_current)
+                        # Ghi nhận thứ tự tiêu chí theo từng file
+                        criteria_order = df_sop_results["Tiêu chí"].tolist()
+                        criteria_orders_by_file[file_name] = criteria_order
 
                         df_pivot = df_sop_results.pivot_table(
                             index=[],
@@ -1265,7 +1272,7 @@ def main():
                             values="Trạng thái",
                             aggfunc='first'
                         ).reset_index(drop=True)
-                        df_pivot = df_pivot.reindex(columns=criteria_order_current).fillna("")
+                        df_pivot = df_pivot.reindex(columns=criteria_order).fillna("")
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
 
@@ -1282,40 +1289,35 @@ def main():
                         }
 
                         df_info = pd.DataFrame([metadata])
-                        df_criteria_full = pd.DataFrame(columns=criteria_order_current)
-                        for crit in criteria_order_current:
+
+                        df_criteria_full = pd.DataFrame(columns=criteria_order)
+                        for crit in criteria_order:
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
                         df_concat = pd.concat([df_info, df_criteria_full], axis=1)
+
+                        cols_first = ["Tên file audio", "Loại cuộc gọi"]
+                        other_cols = [col for col in df_concat.columns if col not in cols_first]
+                        df_concat = df_concat[cols_first + other_cols]
+
                         df_all.append(df_concat)
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
 
-
-            all_criteria_ordered = list(all_criteria_set)
-
-            meta_cols_head = ["Tên file audio", "Loại cuộc gọi"]
-            meta_cols_tail = [
-                "Tỷ lệ tuân thủ tổng thể",
-                "Chi tiết lỗi đánh giá - đơn vị",
-                "Tỷ lệ phản hồi tích cực của KH",
-                "Ghi chú - đơn vị",
-                "Phản hồi gợi ý"
-            ]
-
             df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
-            df_all_concat = df_all_concat.reindex(columns=meta_cols_head + all_criteria_ordered + meta_cols_tail, fill_value="")
 
             df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
             df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
-            excel_file = export_combined_sheet(df_kh_all, df_nt_all, all_criteria_ordered)
+            excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
+
+
 
             st.download_button(
                 label="Tải file tổng hợp Excel",
                 data=excel_file,
-                file_name="Tong_hop_cuoc_goi.xlsx",
+                file_name="AI_QA_GRACE.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
