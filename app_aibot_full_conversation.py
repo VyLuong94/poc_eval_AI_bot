@@ -103,6 +103,7 @@ def clean_text(text):
     text = text.strip()
 
     return text
+    
 
 def detect_intent(text):
     text_lower = text.lower()
@@ -383,6 +384,7 @@ def merge_short_sentences(sentences, short_length=3):
     if buffer:
         merged.append(buffer.strip())
     return merged
+
 
 def analyze_call_transcript(text, min_sentence_length=5):
     raw_sentences = re.split(r'(?<=[.!?]) +', text)
@@ -1174,7 +1176,7 @@ def export_combined_sheet(df_kh_all, df_nt_all):
     all_criteria_cols = (
         set(df_kh_all.columns.tolist()) |
         set(df_nt_all.columns.tolist())
-    ) - set(meta_cols)
+    ) 
 
 
     all_cols_ordered = (
@@ -1196,8 +1198,6 @@ def export_combined_sheet(df_kh_all, df_nt_all):
         df_combined.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
-
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1329,6 +1329,7 @@ def main():
                     file_name="AI_QA_REPORT_GRACE.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
+
 
         cleanup_memory()
 
