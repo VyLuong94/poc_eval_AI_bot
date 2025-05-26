@@ -807,8 +807,8 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     matched = True
                     status = "Đã tuân thủ"
 
-            elif "xác định người thân" in lower_sub:
-                if any(re.search(r"\b(chị|anh|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
+            elif "xác định tên của người thân" in lower_sub:
+                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
                     matched = True
                     status = "Đã tuân thủ"
 
