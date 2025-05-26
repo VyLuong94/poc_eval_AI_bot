@@ -269,7 +269,7 @@ def split_sop_into_subsentences(text):
             results.append(cleaned)
 
     return results
-
+    
 
 
 IGNORE_KEYWORDS = [
@@ -812,6 +812,11 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     matched = True
                     status = "Đã tuân thủ"
 
+            elif "xác định mối quan hệ" in lower_sub:
+                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
+                    matched = True
+                    status = "Đã tuân thủ"
+
             elif "cám ơn và chào khách hàng" in lower_sub:
                 if any(re.search(r"cảm ơn", s.lower()) and re.search(r"chào", s.lower()) for s in agent_sentences):
                     matched = True
@@ -1307,7 +1312,7 @@ def main():
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
-                    
+
 
             if df_all:
                 df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
