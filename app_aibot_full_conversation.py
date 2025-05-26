@@ -1307,6 +1307,7 @@ def main():
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
+                    
 
             if df_all:
                 df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
