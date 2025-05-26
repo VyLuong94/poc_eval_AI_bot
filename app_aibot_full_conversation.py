@@ -277,7 +277,7 @@ IGNORE_KEYWORDS = [
     "chậm nhất", "thanh toán", "hồ sơ", "ngân hàng", "báo cáo", "giùm em", "hả", "xin phép gọi lại sau", "nói với", "nhờ chị",
     "không biết là", "báo cho chị", "chuyển luôn cho em", "Đúng rồi", "liên lạc lại sau", "đúng không", "chưa chị", "chị tính",
     "mình đóng", "em báo", "nhắc", "xử lý", "thu", "vậy ạ", "dạ không đổi số", "giúp nha", "giúp", "xin phép", "đóng giúp", "mình bảo",
-    "em cảm ơn", "trễ"
+    "em cảm ơn", "trễ", "em bên"
 ]
 
 
