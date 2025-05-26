@@ -1175,7 +1175,7 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     for _, row in df_all_concat.iterrows():
         file_name = row["Tên file audio"]
         criteria_order = criteria_orders_by_file.get(file_name, [])
-        
+
 
         all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
 
@@ -1210,7 +1210,7 @@ def main():
                 return
 
             df_all = []
-            criteria_orders_by_file = {}  
+            criteria_orders_by_file = {}
 
             for file_name, transcript in transcripts_by_file.items():
                 st.subheader(f"Tệp âm thanh: {file_name}")
@@ -1262,17 +1262,17 @@ def main():
                         else:
                             call_type = "Unknown"
 
-                        # Ghi nhận thứ tự tiêu chí theo từng file
-                        criteria_order = df_sop_results["Tiêu chí"].tolist()
-                        criteria_orders_by_file[file_name] = criteria_order
+                        df_sop_results["Tiêu chí prefixed"] = df_sop_results["Tiêu chí"] + f"_{call_type}"
+                        criteria_order_prefixed = df_sop_results["Tiêu chí prefixed"].tolist()
+                        criteria_orders_by_file[file_name] = criteria_order_prefixed
 
                         df_pivot = df_sop_results.pivot_table(
                             index=[],
-                            columns="Tiêu chí",
+                            columns="Tiêu chí prefixed",
                             values="Trạng thái",
                             aggfunc='first'
                         ).reset_index(drop=True)
-                        df_pivot = df_pivot.reindex(columns=criteria_order).fillna("")
+                        df_pivot = df_pivot.reindex(columns=criteria_order_prefixed).fillna("")
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
 
@@ -1290,28 +1290,32 @@ def main():
 
                         df_info = pd.DataFrame([metadata])
 
-                        df_criteria_full = pd.DataFrame(columns=criteria_order)
-                        for crit in criteria_order:
+                        df_criteria_full = pd.DataFrame(columns=criteria_order_prefixed)
+                        for crit in criteria_order_prefixed:
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
-                        df_concat = pd.concat([df_info, df_criteria_full], axis=1)
+                        cols_left = ["Tên file audio", "Loại cuộc gọi"]
+                        cols_metadata_rest = [col for col in df_info.columns if col not in cols_left]
 
-                        cols_first = ["Tên file audio", "Loại cuộc gọi"]
-                        other_cols = [col for col in df_concat.columns if col not in cols_first]
-                        df_concat = df_concat[cols_first + other_cols]
+                        df_metadata_left = df_info[cols_left]
+
+                        df_metadata_rest = df_info[cols_metadata_rest]
+
+                        df_concat = pd.concat([df_metadata_left, df_criteria_full, df_metadata_rest], axis=1)
 
                         df_all.append(df_concat)
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
 
-            df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
+            if df_all:
+                df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
-            df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
-            df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
+                df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
+                df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
-            excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
-
+ 
+                excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
 
 
             st.download_button(
