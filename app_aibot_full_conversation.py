@@ -794,6 +794,12 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
         if not sub_sentences:
             sub_sentences = []
 
+
+        def contains_proper_noun(sentence):
+            words = re.findall(r'\b[A-ZÀ-Ỵ][a-zà-ỹ]+\b', sentence)
+            filtered = [w for w in words if w.lower() not in {"em", "toi", "tôi", "anh", "chị", "chú", "cô", "bác"}]
+            return len(filtered) > 0
+
         for sub_idx, sub_sentence in enumerate(sub_sentences, 1):
             matched = False
             status = "Chưa tuân thủ"
@@ -849,7 +855,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
             elif "đơn vị gọi đến" in lower_sub and "giới thiệu tên" in lower_sub:
                 for s in agent_sentences:
                     s_lower = s.lower()
-                    cond1 = ("em là" in s_lower and "bên" in s_lower)
+                    cond1 = contains_proper_noun(s) and "bên" in s_lower
                     cond2 = ("phòng công nợ" in s_lower or "công ty tài chính" in s_lower or
                              re.search(r"\bh\s*d\b|\bhd\b", s_lower) or "sài gòn" in s_lower or
                              "hcm" in s_lower or "chủ trả góp" in s_lower or "chào" in s_lower)
@@ -966,7 +972,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     )
 
     return processed_results, sop_compliance_rate, formatted_violations
-    
+
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
@@ -1196,7 +1202,6 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     return output
 
 
-
 st.title("Đánh giá Cuộc Gọi - AI Bot")
 
 def main():
@@ -1208,7 +1213,7 @@ def main():
 
         if st.button("Đánh giá"):
             try:
-                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files_from_zip_transcripts(
+                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
                     uploaded_excel_file, uploaded_audio_file
                 )
             except Exception as e:
@@ -1324,14 +1329,12 @@ def main():
 
                 excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
 
-
             st.download_button(
                 label="Tải file tổng hợp Excel",
                 data=excel_file,
                 file_name="AI_QA_GRACE.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-
 
         # cleanup_memory()
 
