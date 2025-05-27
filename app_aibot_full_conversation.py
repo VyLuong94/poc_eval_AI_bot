@@ -125,9 +125,6 @@ def detect_intent(text):
             r"cảm ơn bạn đã thông báo", r"tôi sẽ trao đổi thêm với gia đình", r"vâng, tôi hiểu",
             r"tôi đang cố gắng sắp xếp", r"nhờ công ty hỗ trợ", r"cho tôi thêm thời gian"
         ],
-        "Xin gọi lại": [
-            r"đang bận", r"gọi giờ khác", r"đang họp"
-        ],
 
         "Không thanh toán": [
             r"không nghe nữa", r"đừng gọi nữa", r"không rảnh", r"cúp máy đây",
@@ -269,7 +266,7 @@ def split_sop_into_subsentences(text):
             results.append(cleaned)
 
     return results
-    
+
 
 
 IGNORE_KEYWORDS = [
@@ -969,6 +966,7 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
     )
 
     return processed_results, sop_compliance_rate, formatted_violations
+    
 
 
 def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, threshold=0.3):
@@ -1021,6 +1019,7 @@ def evaluate_sop_compliance(agent_transcript, sop_excel_file, model=None, thresh
             "Trạng thái": "Lỗi",
             "Điểm": ""
         }], 0.0, []
+
 
 
 def split_violation_text(violation_text):
@@ -1162,6 +1161,7 @@ def process_files_from_zip_transcripts(uploaded_excel_file, uploaded_zip_file):
     return qa_llm, retriever, sop_data, transcripts_by_file, detected_sheets_by_file
 
 
+
 def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     if df_all_concat.empty:
         return None
@@ -1194,6 +1194,7 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
         df_final.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1320,7 +1321,7 @@ def main():
                 df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
                 df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
 
- 
+
                 excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
 
 
@@ -1332,7 +1333,7 @@ def main():
             )
 
 
-        cleanup_memory()
+        # cleanup_memory()
 
 if __name__ == "__main__":
     main()
