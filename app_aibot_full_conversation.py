@@ -700,6 +700,7 @@ def generate_response(text, label):
     )
     return response.choices[0].message.content.strip()
 
+
 def rule_based_response(text, label):
     text_lower = text.lower()
     if label == "Không hợp tác":
@@ -708,6 +709,7 @@ def rule_based_response(text, label):
         if "cúp máy" in text_lower:
             return "Cám ơn bạn đã phản hồi. Chúng tôi sẽ liên hệ lại sau."
     return "Cám ơn bạn đã hợp tác. Chúng tôi sẽ tiếp tục theo dõi tình trạng của bạn."
+
 
 def suggest_response(text, label, use_llm=True):
     if use_llm:
@@ -1232,15 +1234,15 @@ def main():
                 customer_label = classify_tone(transcript, chunk_size=None)
 
                 notes_parts = [
-                    f"- Cảm xúc của khách hàng: {customer_label}",
-                    f"- Ý định của khách hàng: {analysis_result['intent']}",
-                    "- Tổng hợp cảm xúc trong câu của khách hàng:"
+                    f"Cảm xúc của khách hàng: {customer_label}",
+                    f"Ý định của khách hàng: {analysis_result['intent']}",
+                    "Tổng hợp cảm xúc trong câu của khách hàng:"
                 ]
 
                 for tone, count in tone_chunks["tone_summary"].items():
                     notes_parts.append(f"  - {tone}: {count} câu")
 
-                notes_parts.append("- Các đoạn nổi bật:")
+                notes_parts.append("Các đoạn nổi bật:")
                 for chunk in tone_chunks["important_chunks"]:
                     notes_parts.append(f"  - > \"{chunk['text']}\"\n    → **{chunk['tone']}**")
 
@@ -1292,7 +1294,7 @@ def main():
                             "Loại cuộc gọi": call_type,
                             "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
                             "Chi tiết lỗi đánh giá - đơn vị": "\n".join(
-                                f"- {v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)
+                                f"{v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)
                             ),
                             "Tỷ lệ phản hồi tích cực của KH": f"{analysis_result['collaboration_rate']}%",
                             "Ghi chú - đơn vị": note_text,
