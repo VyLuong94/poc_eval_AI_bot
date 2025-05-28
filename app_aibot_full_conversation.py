@@ -1231,7 +1231,16 @@ def main():
 
                 analysis_result = analyze_call_transcript(transcript)
                 tone_chunks = analysis_result["tone_chunks"]
-                customer_label = classify_tone(transcript, chunk_size=None)
+                # customer_label = classify_tone(transcript, chunk_size=None)
+                tone_results = classify_tone(transcript, chunk_size=None)
+
+
+                if isinstance(tone_results, list) and isinstance(tone_results[0], dict):
+                    tone_labels = [r["tone"] for r in tone_results if "tone" in r]
+                    customer_label = max(set(tone_labels), key=tone_labels.count) if tone_labels else "Không xác định"
+                else:
+                    customer_label = "Không xác định"
+
 
                 notes_parts = [
                     f"Cảm xúc của khách hàng: {customer_label}",
