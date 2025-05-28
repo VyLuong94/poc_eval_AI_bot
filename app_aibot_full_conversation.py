@@ -1184,18 +1184,24 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     ]
 
     rows = []
-    col_orders = [] 
+    all_criteria_cols = []
+    criteria_seen = set()
 
     for _, row in df_all_concat.iterrows():
         file_name = row["Tên file audio"]
         criteria_order = criteria_orders_by_file.get(file_name, [])
+
+
+        for crit in criteria_order:
+            if crit not in criteria_seen:
+                all_criteria_cols.append(crit)
+                criteria_seen.add(crit)
 
         ordered_columns = meta_cols_head + criteria_order + meta_cols_tail
 
         ordered_row = pd.Series({col: row.get(col, "") for col in ordered_columns})
 
         rows.append(ordered_row)
-        col_orders.append(ordered_columns)
 
     final_columns = meta_cols_head + criteria_order + meta_cols_tail
 
