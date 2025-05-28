@@ -1197,7 +1197,12 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
         rows.append(ordered_row)
         col_orders.append(ordered_columns)
 
-    final_columns = col_orders[-1] if col_orders else []
+    final_columns = meta_cols_head + criteria_order + meta_cols_tail
+
+    for i in range(len(rows)):
+        for col in final_columns:
+            if col not in rows[i]:
+                rows[i][col] = ""
 
     df_final = pd.DataFrame(rows, columns=final_columns)
 
