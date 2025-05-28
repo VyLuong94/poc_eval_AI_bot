@@ -1184,27 +1184,24 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     ]
 
     rows = []
-    all_columns = set()
-
     for _, row in df_all_concat.iterrows():
-        file_name = row["Tên file audio"]
-        criteria_order = criteria_orders_by_file.get(file_name, [])
+        criteria_order = row.get("__criteria_order__", [])
+
+        criteria_order = [col for col in criteria_order if col in row and col not in meta_cols_head + meta_cols_tail]
 
         all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
+
         ordered_row = pd.Series({col: row.get(col, "") for col in all_cols_ordered})
         rows.append(ordered_row)
-        all_columns.update(all_cols_ordered)
 
     df_final = pd.DataFrame(rows)
-
-    final_columns = meta_cols_head + sorted(list(all_columns - set(meta_cols_head) - set(meta_cols_tail))) + meta_cols_tail
-    df_final = df_final.reindex(columns=final_columns)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df_final.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
+
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1326,7 +1323,7 @@ def main():
                         df_metadata_tail = df_info[cols_tail]
 
                         df_concat = pd.concat([df_metadata_head, df_criteria_full, df_metadata_tail], axis=1)
-
+                        df_concat["__criteria_order__"] = [criteria_order_prefixed] * len(df_concat)
                         df_all.append(df_concat)
 
                 except Exception as e:
@@ -1335,10 +1332,6 @@ def main():
 
             if df_all:
                 df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
-
-                df_kh_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "KH"]
-                df_nt_all = df_all_concat[df_all_concat["Loại cuộc gọi"] == "NT"]
-
 
                 excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
 
