@@ -1215,7 +1215,7 @@ def main():
 
         if st.button("Đánh giá"):
             try:
-                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files(
+                qa_chain, retriever, sop_data, transcripts_by_file, detected_sheets_by_file = process_files_from_zip_transcripts(
                     uploaded_excel_file, uploaded_audio_file
                 )
             except Exception as e:
@@ -1340,7 +1340,7 @@ def main():
             
 
         cleanup_memory()
-        
+
 
 if __name__ == "__main__":
     main()
