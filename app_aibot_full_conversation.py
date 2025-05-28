@@ -1184,18 +1184,21 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     ]
 
     rows = []
+    all_columns = set()
 
     for _, row in df_all_concat.iterrows():
         file_name = row["Tên file audio"]
         criteria_order = criteria_orders_by_file.get(file_name, [])
 
-
         all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
-
         ordered_row = pd.Series({col: row.get(col, "") for col in all_cols_ordered})
         rows.append(ordered_row)
+        all_columns.update(all_cols_ordered)
 
     df_final = pd.DataFrame(rows)
+
+    final_columns = meta_cols_head + sorted(list(all_columns - set(meta_cols_head) - set(meta_cols_tail))) + meta_cols_tail
+    df_final = df_final.reindex(columns=final_columns)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
