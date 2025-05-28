@@ -1316,14 +1316,13 @@ def main():
                         for crit in criteria_order_prefixed:
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
-                        cols_left = ["Tên file audio", "Loại cuộc gọi"]
-                        cols_metadata_rest = [col for col in df_info.columns if col not in cols_left]
+                        cols_head = ["Tên file audio", "Loại cuộc gọi"]
+                        df_metadata_head = df_info[cols_head]
 
-                        df_metadata_left = df_info[cols_left]
+                        cols_tail = [col for col in df_info.columns if col not in cols_head]
+                        df_metadata_tail = df_info[cols_tail]
 
-                        df_metadata_rest = df_info[cols_metadata_rest]
-
-                        df_concat = pd.concat([df_metadata_left, df_criteria_full, df_metadata_rest], axis=1)
+                        df_concat = pd.concat([df_metadata_head, df_criteria_full, df_metadata_tail], axis=1)
 
                         df_all.append(df_concat)
 
