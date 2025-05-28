@@ -1337,8 +1337,10 @@ def main():
                 file_name="AI_QA_GRACE.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+            
 
-        # cleanup_memory()
+        cleanup_memory()
+        
 
 if __name__ == "__main__":
     main()
