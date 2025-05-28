@@ -1203,7 +1203,7 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
 
         rows.append(ordered_row)
 
-    final_columns = meta_cols_head + criteria_order + meta_cols_tail
+    final_columns = meta_cols_head + criteria_seen + meta_cols_tail
 
     for i in range(len(rows)):
         for col in final_columns:
