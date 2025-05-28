@@ -1184,13 +1184,12 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     ]
 
     rows = []
-    for _, row in df_all_concat.iterrows():
-        criteria_order = row.get("__criteria_order__", [])
 
-        criteria_order = [col for col in criteria_order if col in row and col not in meta_cols_head + meta_cols_tail]
+    for _, row in df_all_concat.iterrows():
+        file_name = row["Tên file audio"]
+        criteria_order = criteria_orders_by_file.get(file_name, [])
 
         all_cols_ordered = meta_cols_head + criteria_order + meta_cols_tail
-
         ordered_row = pd.Series({col: row.get(col, "") for col in all_cols_ordered})
         rows.append(ordered_row)
 
@@ -1201,7 +1200,6 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
         df_final.to_excel(writer, sheet_name="Tong_hop_cuoc_goi", index=False)
     output.seek(0)
     return output
-
 
 
 st.title("Đánh giá Cuộc Gọi - AI Bot")
@@ -1323,17 +1321,15 @@ def main():
                         df_metadata_tail = df_info[cols_tail]
 
                         df_concat = pd.concat([df_metadata_head, df_criteria_full, df_metadata_tail], axis=1)
-                        df_concat["__criteria_order__"] = [criteria_order_prefixed] * len(df_concat)
                         df_all.append(df_concat)
 
                 except Exception as e:
                     st.error(f"Lỗi khi đánh giá compliance: {e}")
 
 
-            if df_all:
-                df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
+            df_all_concat = pd.concat(df_all, axis=0, ignore_index=True)
 
-                excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
+            excel_file = export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file)
 
             st.download_button(
                 label="Tải file tổng hợp Excel",
