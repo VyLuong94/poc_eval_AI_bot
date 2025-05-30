@@ -1115,6 +1115,60 @@ def evaluate_combined_transcript_and_compliance(agent_transcript, sop_excel_file
     return eval_result
 
 
+def classify_result_code(transcript: str) -> dict:
+    prompt = f"""
+Bạn là trợ lý AI phân loại cuộc gọi nhắc nợ thành đúng 1 trong các nhãn 3 chữ cái sau:
+
+- **SPP**: KH trực tiếp hứa thanh toán, nói rõ số tiền hoặc thời gian thanh toán.
+- **SPD**: KH hoặc người thân xác nhận đã thanh toán.
+- **SRS**: Người thân nói sẽ thanh toán thay KH. Không áp dụng nếu nói chuyện với KH
+- **PIT**: Không gặp KH,nhờ nhắn KH gọi lại tổng đài công ty để tiện trao đổi
+- **PRI**: Cung cấp thêm thông tin như địa chỉ/số điện thoại/giấy tờ/ý kiến phản ánh.
+- **PRP**: KH từ chối thanh toán hoặc không hợp tác.
+- **PCB**: KH hoặc người nghe máy yêu cầu gọi lại lúc khác.
+- **PNU**: KH trực tiếp trao đổi nhưng không cam kết ngày/thời gian thanh toán. Không áp dụng nếu nói chuyện với người thân.
+- **PNC**: Người nghe máy không liên quan, không hợp tác, không cung cấp thông tin gì.
+
+Ví dụ:
+Hội thoại: "Dạ chồng em đi đóng sau giờ làm, nếu không được ảnh gọi lại."
+Nhãn: PIT
+
+Hội thoại: "Dạ để mai mốt em đi làm về rồi ghé đóng chị ha."
+Nhãn: SPP
+
+Hội thoại: "Dạ để tính tiếp, chừng nào có thì đóng."
+Nhãn: PNU
+
+
+Hội thoại: "Tôi không đồng ý liên hệ, hỗ trợ gửi lời nhắn"
+Nhãn: PNC
+
+Nếu KH nói sẽ đóng **vào một thời điểm cụ thể hoặc ước lượng rõ ràng** như “chiều nay”, “mai”, “cuối tuần”, thì gán nhãn **SPP**.
+Nếu KH **chỉ nói chung chung** như “để tính”, “để rảnh rồi đi”, không nói rõ thời gian, thì gán nhãn **PNU**.
+
+
+
+---
+
+Hội thoại: \"\"\"{transcript}\"\"\"
+
+Hãy phân loại cuộc gọi này bằng một mã nhãn duy nhất (3 chữ cái) trong danh sách trên.
+Chỉ trả về mã nhãn, không giải thích.
+"""
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Bạn là trợ lý AI chuyên phân loại nội dung cuộc gọi nhắc nợ."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=10,
+        temperature=0
+    )
+    nhan = response.choices[0].message.content.strip()
+    return {"label": nhan}
+
+
+
 def process_files(uploaded_excel_file, uploaded_audio_file):
     uploaded_excel_file.seek(0)
     qa_llm, retriever, sop_data, combined_text = load_excel_rag_data(uploaded_excel_file)
@@ -1236,6 +1290,7 @@ def main():
             except Exception as e:
                 st.error(f"Lỗi khi xử lý tệp: {e}")
                 return
+                
 
             df_all = []
             criteria_orders_by_file = {}
@@ -1313,9 +1368,12 @@ def main():
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
 
+                        result_code = classify_result_code(transcript)
+
                         metadata = {
                             "Tên file audio": file_name,
                             "Loại cuộc gọi": call_type,
+                            "Result code": result_code,
                             "Tỷ lệ tuân thủ tổng thể": f"{compliance_rate:.2f}%",
                             "Chi tiết lỗi đánh giá - đơn vị": "\n".join(
                                 f"{v.get('Tiêu chí', '')}" for v in sop_violations if isinstance(v, dict)
@@ -1331,7 +1389,7 @@ def main():
                         for crit in criteria_order_prefixed:
                             df_criteria_full[crit] = df_pivot[crit] if crit in df_pivot.columns else ""
 
-                        cols_head = ["Tên file audio", "Loại cuộc gọi"]
+                        cols_head = ["Tên file audio", "Loại cuộc gọi", "Result code"]
                         df_metadata_head = df_info[cols_head]
 
                         cols_tail = [col for col in df_info.columns if col not in cols_head]
@@ -1354,7 +1412,8 @@ def main():
                 file_name="AI_QA_GRACE.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            
+
+
 
         cleanup_memory()
 
