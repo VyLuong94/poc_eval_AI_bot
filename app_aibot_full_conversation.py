@@ -1228,7 +1228,7 @@ def export_combined_sheet_per_file(df_all_concat, criteria_orders_by_file):
     if df_all_concat.empty:
         return None
 
-    meta_cols_head = ["Tên file audio", "Loại cuộc gọi"]
+    meta_cols_head = ["Tên file audio", "Loại cuộc gọi", "Result code"]
     meta_cols_tail = [
         "Tỷ lệ tuân thủ tổng thể",
         "Chi tiết lỗi đánh giá - đơn vị",
@@ -1290,7 +1290,7 @@ def main():
             except Exception as e:
                 st.error(f"Lỗi khi xử lý tệp: {e}")
                 return
-                
+
 
             df_all = []
             criteria_orders_by_file = {}
