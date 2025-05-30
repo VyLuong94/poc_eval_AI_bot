@@ -1368,7 +1368,7 @@ def main():
 
                         suggestion = suggest_response(transcript, customer_label, use_llm=True)
 
-                        result_code = classify_result_code(transcript)
+                        result_code = classify_result_code(transcript)["label"]
 
                         metadata = {
                             "Tên file audio": file_name,
