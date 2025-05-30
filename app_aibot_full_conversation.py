@@ -813,12 +813,12 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                     status = "Đã tuân thủ"
 
             elif "xác định tên của người thân" in lower_sub:
-                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
+                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác|mẹ|bố|ba|má)\s+\w+", s.lower()) for s in agent_sentences):
                     matched = True
                     status = "Đã tuân thủ"
 
             elif "xác định mối quan hệ" in lower_sub:
-                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác)\s+\w+", s.lower()) for s in agent_sentences):
+                if any(re.search(r"\b(chị|anh|vợ|chồng|cô|chú|bác|mẹ|bố|ba|má)\s+\w+", s.lower()) for s in agent_sentences):
                     matched = True
                     status = "Đã tuân thủ"
 
@@ -879,12 +879,15 @@ def calculate_sop_compliance_by_sentences(transcript, sop_items, model, threshol
                 for s in agent_sentences:
                     s_lower = s.lower()
 
-                    match = re.search(r"trễ\s+\d+\s+ngày.*(\d+[.,]?\d*\s*(ngàn|triệu|k|đ)?)", s_lower)
-                    match_alt = re.search(r"trễ\s+\d+\s+ngày.*\d{1,3}([.,]\d{3})+", s_lower)
+                    match_delay = re.search(r"trễ\s+(\d+)\s+ngày", s_lower)
 
-                    if match or match_alt:
+                    match_amount_dot = re.search(r"\b(\d{1,3}(?:[.,]\d{3})+)\b", s_lower)
+                    match_amount_words = re.search(r"\b(\d+[.,]?\d*)\s*(triệu|tr|ngàn|k|đ)\b", s_lower)
+
+                    if match_delay and (match_amount_dot or match_amount_words):
                         matched = True
                         status = "Đã tuân thủ"
+
 
             elif "ghi nhận" in lower_sub:
                 matched = True
