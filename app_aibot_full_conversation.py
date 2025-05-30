@@ -322,9 +322,8 @@ def detect_sheet_from_text(agent_text):
 
     patterns = [
     r"cho hỏi.*(vợ|chồng|con|ba|mẹ|người nhà|người thân).*có phải.*đang nghe máy",
-    r"(chị|anh|em) có phải là.*(vợ|chồng|con|người thân) của",
+    r"(chị|anh|em) có phải là.*(vợ|chồng|con|em|ba|má|bố|mẹ) của",
     r"(vợ|chồng|con) của (anh|chị)",
-    r"(chị|anh|em) là (vợ|chồng|người thân|người nhà) của",
     r"(vợ|chồng|con).*đang nghe máy",
     r"xin phép.*liên hệ.*(người nhà|người thân)",
 ]
